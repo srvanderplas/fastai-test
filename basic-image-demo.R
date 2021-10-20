@@ -1,8 +1,12 @@
-
+# ---- Setup ----
 # reticulate::install_miniconda()
 # reticulate::conda_create('r-reticulate')
-## This creates a r-reticulate conda instance inside /home/susan/.local/share/r-miniconda/envs/r-reticulate
+## This creates a r-reticulate conda instance inside
+## ~/.local/share/r-miniconda/envs/r-reticulate (on my machine)
+
 # devtools::install_github('eagerai/fastai')
+## This step took forever but did originally finish. You may need to use gpu = F
+## because I have a cuda-capable gpu on my desktop...
 # fastai::install_fastai(gpu = T, cuda_version = '10', overwrite = FALSE)
 
 library(fastai)
