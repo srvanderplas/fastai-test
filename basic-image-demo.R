@@ -4,13 +4,19 @@
 ## This creates a r-reticulate conda instance inside
 ## ~/.local/share/r-miniconda/envs/r-reticulate (on my machine)
 
+
+# reticulate::py_install('icevision', pip = TRUE)
+# reticulate::py_install('fastai', pip = TRUE)
+
 # devtools::install_github('eagerai/fastai')
 ## This step took forever but did originally finish. You may need to use gpu = F
 ## because I have a cuda-capable gpu on my desktop...
 # fastai::install_fastai(gpu = T, cuda_version = '10', overwrite = FALSE)
 
 library(fastai)
-URLs_PETS() # Must restart session for this to work, not sure why?
+library(magrittr)
+
+# URLs_PETS() # Must restart session for this to work, not sure why?
 path = 'oxford-iiit-pet'
 path_anno = 'oxford-iiit-pet/annotations'
 path_img = 'oxford-iiit-pet/images'
