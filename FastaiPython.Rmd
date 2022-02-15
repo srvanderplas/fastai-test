@@ -1,0 +1,164 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(reticulate)
+use_virtualenv("r-reticulate")
+```
+
+```{python}
+import numpy as np
+import pandas
+import matplotlib.pyplot as plt
+import json
+from pathlib import Path
+import json
+from PIL import ImageDraw, ImageFont
+from matplotlib import patches, patheffects
+from fastai.learner import *
+from fastai.data import *
+from collections import defaultdict
+import collections
+import cv2
+import os
+
+PATH = Path('data/shoes')
+list(PATH.iterdir())
+
+trn_j = json.load((PATH /'shoe_textures.json').open())
+trn_j.keys()
+
+IMAGES, ANNOTATIONS, CATEGORIES = ['images', 'annotations', 'categories']
+trn_j[IMAGES][:1]
+trn_j[ANNOTATIONS][:2]
+trn_j[CATEGORIES][:4]
+
+FILE_NAME, ID, IMG_ID, CAT_ID, BBOX = 'file_name', 'id', 'image_id', 'category_id', 'bbox'
+cats = dict((o[ID], o['name']) for o in trn_j[CATEGORIES])
+trn_fns = dict((o[ID], o[FILE_NAME]) for o in trn_j[IMAGES])
+trn_ids = [o[ID] for o in trn_j[IMAGES]]
+
+im0_d = trn_j[IMAGES][0]
+im0_d[FILE_NAME], im0_d[ID]
+
+trn_anno = collections.defaultdict(lambda:[])
+for o in trn_j[ANNOTATIONS]:
+    if not o['ignore']:
+        bb = o[BBOX]  # one bbox. looks like '[155, 96, 196, 174]'.
+        bb = np.array([bb[1], bb[0], bb[3] + bb[1]- 1, bb[2] + bb[0] - 1 ]) # output '[96 155 269 350]'.
+        trn_anno[o[IMG_ID]].append((bb, o[CAT_ID]))
+
+len(trn_anno)
+
+list(trn_anno.values())[0]
+
+im_a = trn_anno[im0_d[ID]]
+im_a
+
+im_a = im_a[0]
+im_a
+
+cats[6]
+
+trn_anno[17]
+
+#Some libraries take bounding boxes opposite of what we just did
+def bb_hw(a):
+    return np.array([ a[1], a[0], a[3] - a[1] + 1, a[2] - a[0] + 1 ])
+
+
+def open_image(fn):
+    """ Opens an image using OpenCV given the file path.
+
+    Arguments:
+        fn: the file path of the image
+
+    Returns:
+        The image in RGB format as numpy array of floats normalized to range between 0.0 - 1.0
+    """
+    flags = cv2.IMREAD_UNCHANGED+cv2.IMREAD_ANYDEPTH+cv2.IMREAD_ANYCOLOR
+    if not os.path.exists(fn):
+        raise OSError('No such file or directory: {}'.format(fn))
+    elif os.path.isdir(fn):
+        raise OSError('Is a directory: {}'.format(fn))
+    else:
+        try:
+            if str(fn).startswith("http"):
+                req = urllib.urlopen(str(fn))
+                image = np.asarray(bytearray(resp.read()), dtype="uint8")
+                im = cv2.imdecode(image, flags).astype(np.float32)/255
+            else:
+                im = cv2.imread(str(fn), flags).astype(np.float32)/255
+            if im is None: raise OSError(f'File not recognized by opencv: {fn}')
+            return cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+        except Exception as e:
+            raise OSError('Error handling image at: {}'.format(fn)) from e
+          
+im = open_image("shoes_num/1.jpg")
+
+#Plot.subplots is super great about making our plots versatile
+def show_img(im, figsize = None, ax = None):
+  if not ax: fix,ax = plt.subplots(figsize=figsize)
+  ax.imshow(im)
+  ax.get_xaxis().set_visible(False)
+  ax.get_yaxis().set_visible(False)
+  return ax
+
+#Setting a appropriate colors for bounding boxes
+def draw_outline(o, lw):
+    o.set_path_effects([patheffects.Stroke(linewidth=lw, foreground='black'),
+                          patheffects.Normal()])
+                          
+#Drawing the actual bounding boxes
+def draw_rect(ax, b):
+  patch = ax.add_patch(patches.Rectangle(b[:2], *b[-2:], fill = False, edgecolor = 'white', lw = 2))
+  draw_outline(patch, 4)
+  
+#Creating the text of the appropraite class ax is axis object
+def draw_text(ax, xy, txt, sz=14):
+  text = ax.text(*xy, txt,
+  verticalalignment = 'top', color='white', fontsize = sz, weight='bold')
+  draw_outline(text, 1)
+  
+#Let's try it!!
+ax = show_img(im)
+b = bb_hw(im_a[0])
+draw_rect(ax, b)
+draw_text(ax, b[:2], cats[im_a[1]])
+plt.show()
+#Inserting the https//www. part
+x = 0
+arr = []
+#key,value
+for x in trn_fns.keys():
+  #arr[x = trn_fns[x][:8] + "www." + trn_fns[x][8:]
+  #print(trn_fns[x])
+  arr.append(trn_fns[x].split('//')[0] + "//www." + trn_fns[x].split('//')[1])
+print(arr)
+arr[1]
+```
+
+```{r}
+result <- fromJSON(file = 'shoe_textures.json')
+
+cats <- list()
+trn_fns <- list()
+trn_ids <- list()
+
+for(i in 1:length(result$categories)){
+  cats[i] = result$categories[[i]]$name
+}
+for(i in 1:length(result$images)){
+  trn_fns[i] = result$images[[i]]$file_name
+}
+for(i in 1:length(result$images)){
+  trn_ids[i] = result$images[[i]]$id
+}
+
+for(i in 1:length(trn_fns)){
+  trn_fns[[i]] <- stringr::str_replace(trn_fns[[i]], "https://", "https://www.")
+}
+
+```
