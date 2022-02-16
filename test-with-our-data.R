@@ -8,62 +8,12 @@ library(zeallot) # multi-assign operator %<-%
 # suppressMessages(library(dplyr))
 
 library(reticulate)
+
 reticulate::use_virtualenv('r-reticulate')
 library(fastai)
 library(rjson)
 library(imager)
 
-
-use_python('/Users/jaydenstack/Library/r-miniconda/envs/r-reticulate/bin/python', required = TRUE)
-use_condaenv('fastai_in_R')
-py_config()
-
-result <- fromJSON(file = 'shoe_textures.json')
-
-cats <- list()
-trn_fns <- list()
-trn_ids <- list()
-
-for(i in 1:length(result$categories)){
-  cats[i] = result$categories[[i]]$name
-}
-for(i in 1:length(result$images)){
-  trn_fns[i] = result$images[[i]]$file_name
-}
-for(i in 1:length(result$images)){
-  trn_ids[i] = result$images[[i]]$id
-}
-
-for(i in 1:length(trn_fns)){
-  trn_fns[[i]] <- stringr::str_replace(trn_fns[[i]], "https://", "https://www.")
-}
-
-im <- load.image(trn_fns[[1]])
-plot(im)
-
-DrawOutine <- function(o, lw){
-set_path
-}
-
-tmrfs = 
-md = ImageDataLoaders_from_csv("shoes_num")
-#We already have this in the lbl_bbox part
-# for (o in 1:length(result$annotations)){
-#     bb[o] = as.list(result$annotations[[o]]$bbox)
-#     #bb = array(dim = [bb[2], bb[1], bb[4 + bb[1] -1, bb[2] + bb[1] -1]])
-# }
-
-im <- load.image(images[1])
-im2 = resize(im, round(width(im)/100),round(height(im)/10))
-plot(im2)
-dev.new(width = 8, height = 6, pointsize = 10)
-
-plot(im2,main="Thumbnail")
-plot(im)
-plot(cars)
-plot(boats)
-
-im
 
 
 # Modifying code from https://cran.r-project.org/web/packages/fastai/vignettes/obj_detect.html
@@ -111,6 +61,16 @@ create_head(124, 4)
 arch$smoothers
 arch$classifier
 arch$box_regressor
+
+dls = coco %>% dataloaders('shoes_num', bs = 2)
+dls %>% show_batch(max_n = 6)
+
+
+# Retinanet components
+encoder = create_body(resnet34(), pretrained = TRUE)
+
+arch = RetinaNet(encoder, get_c(dls), final_bias=-4)
+
 ratios = c(1/2,1,2)
 scales = c(1,2**(-1/3), 2**(-2/3))
 
@@ -124,7 +84,14 @@ retinanet_split = function(m) {
 }
 
 
+
 # Unfreeze and train
+
+# learn = Learner(dls, arch, loss_func = crit, splitter = retinanet_split)
+# learn$freeze()
+# learn %>% fit(10, fastai::slice(1e-5, 1e-4))
+# Error in py_call_impl(callable, dots$args, dots$keywords) :
+#   TypeError: unsupported operand type(s) for *: 'TensorMultiCategory' and 'TensorImage'
 
 learn = Learner(dls, arch, loss_func = crit, splitter = retinanet_split)
 learn$freeze()
