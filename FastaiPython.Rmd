@@ -113,7 +113,7 @@ class RetinaNet(nn.Module):
 
 
 ```
-Loss function 
+Loss function of working model
 ```{python, loss_fn}
 #Script for Loss function
 
