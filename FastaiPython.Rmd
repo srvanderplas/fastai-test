@@ -387,8 +387,8 @@ learn.fit_one_cycle(8, slice(1e-5, 1e-4))
 
 ```
 
-Functions needed for non-working trial. Most are deprecated. The model stuff is somewhere, most of the same transformation functions can be found under ?fastai>>vision>>augment
 
+Functions needed for non-working trial. Most are deprecated. The model stuff is somewhere, most of the same transformation functions can be found under ?fastai>>vision>>augment
 [Deprecated function repository](https://github.com/Gokkulnath/fastai-v0.7/blob/19731a1a85305d201eedc214fb42db13b9e353af/fastai/transforms.py#L724)
 ```{python, deprecated_functions}
 #All needed functions that are depricated in the latest version of fastai
