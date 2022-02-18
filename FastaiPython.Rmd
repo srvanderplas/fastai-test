@@ -8,11 +8,393 @@ library(reticulate)
 use_virtualenv("r-reticulate")
 ```
 
+Packages
+```{python, packages}
+#Packages to be loaded in, it should be noted, the working trial doesn't use most of these
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import json
+import collections
+import cv2
+import os
+import torch
+import torchvision
+import torchvision.models as TorchModels
+import timm
+import tensorflow as tf
+from fastai import *
+from pathlib import Path
+from PIL import ImageDraw, ImageFont
+from matplotlib import patches, patheffects
+from fastai.learner import *
+from fastai.data import *
+from collections import defaultdict
+from fastai.vision.all import *
+from enum import IntEnum
+```
+Model Architecture code for the working model, explanation of this works can be found at
+[Lesson 9: Deep Learning Part 2 2018 - Multi-object detection](https://www.youtube.com/watch?v=0frKXR-2PBY)
+```{python, model_architecture}
+#Script for the model architecture
+from torch import nn
+import torch.nn.functional as F
+from utils import *
+from fastai.vision.models.unet import _get_sz_change_idxs, hook_outputs
+from fastai.layers import init_default, ConvLayer
+from fastai.callback.hook import model_sizes
 
-```{python}
+def conv2d(ni:int, nf:int, ks:int=3, stride:int=1, padding:int=None, bias=False, init=nn.init.kaiming_normal_):
+    "Create and initialize `nn.Conv2d` layer."
+    if padding is None: padding = ks // 2
+    return init_default(nn.Conv2d(ni, nf, kernel_size=ks, stride=stride, padding=padding, bias=bias), init)
+
+class LateralUpsampleMerge(nn.Module):
+    "Merge the features coming from the downsample path (in `hook`) with the upsample path."
+    def __init__(self, ch, ch_lat, hook):
+        super().__init__()
+        self.hook = hook
+        self.conv_lat = conv2d(ch_lat, ch, ks=1, bias=True)
+    
+    def forward(self, x):
+        return self.conv_lat(self.hook.stored) + F.interpolate(x, self.hook.stored.shape[-2:], mode='nearest')
+
+
+class RetinaNet(nn.Module):
+    "Implements RetinaNet from https://arxiv.org/abs/1708.02002"
+    def __init__(self, encoder:nn.Module, n_classes, final_bias=0., chs=256, n_anchors=9, flatten=True):
+        super().__init__()
+        self.n_classes,self.flatten = n_classes,flatten
+        imsize = (256,256)
+        sfs_szs = model_sizes(encoder, size=imsize)
+        sfs_idxs = list(reversed(_get_sz_change_idxs(sfs_szs)))
+        self.sfs = hook_outputs([encoder[i] for i in sfs_idxs])
+        self.encoder = encoder
+        self.c5top5 = conv2d(sfs_szs[-1][1], chs, ks=1, bias=True)
+        self.c5top6 = conv2d(sfs_szs[-1][1], chs, stride=2, bias=True)
+        self.p6top7 = nn.Sequential(nn.ReLU(), conv2d(chs, chs, stride=2, bias=True))
+        self.merges = nn.ModuleList([LateralUpsampleMerge(chs, sfs_szs[idx][1], hook) 
+                                     for idx,hook in zip(sfs_idxs[-2:-4:-1], self.sfs[-2:-4:-1])])
+        self.smoothers = nn.ModuleList([conv2d(chs, chs, 3, bias=True) for _ in range(3)])
+        self.classifier = self._head_subnet(n_classes, n_anchors, final_bias, chs=chs)
+        self.box_regressor = self._head_subnet(4, n_anchors, 0., chs=chs)
+        
+    def _head_subnet(self, n_classes, n_anchors, final_bias=0., n_conv=4, chs=256):
+        "Helper function to create one of the subnet for regression/classification."
+        layers = [ConvLayer(chs, chs, bias=True, norm_type=None) for _ in range(n_conv)]
+        layers += [conv2d(chs, n_classes * n_anchors, bias=True)]
+        layers[-1].bias.data.zero_().add_(final_bias)
+        layers[-1].weight.data.fill_(0)
+        return nn.Sequential(*layers)
+    
+    def _apply_transpose(self, func, p_states, n_classes):
+        #Final result of the classifier/regressor is bs * (k * n_anchors) * h * w
+        #We make it bs * h * w * n_anchors * k then flatten in bs * -1 * k so we can contenate
+        #all the results in bs * anchors * k (the non flatten version is there for debugging only)
+        if not self.flatten: 
+            sizes = [[p.size(0), p.size(2), p.size(3)] for p in p_states]
+            return [func(p).permute(0,2,3,1).view(*sz,-1,n_classes) for p,sz in zip(p_states,sizes)]
+        else:
+            return torch.cat([func(p).permute(0,2,3,1).contiguous().view(p.size(0),-1,n_classes) for p in p_states],1)
+    
+    def forward(self, x):
+        c5 = self.encoder(x)
+        p_states = [self.c5top5(c5.clone()), self.c5top6(c5)]
+        p_states.append(self.p6top7(p_states[-1]))
+        for merge in self.merges: p_states = [merge(p_states[0])] + p_states
+        for i, smooth in enumerate(self.smoothers[:3]):
+            p_states[i] = smooth(p_states[i])
+        return [self._apply_transpose(self.classifier, p_states, self.n_classes), 
+                self._apply_transpose(self.box_regressor, p_states, 4),
+                [[p.size(2), p.size(3)] for p in p_states]]
+    
+    def __del__(self):
+        if hasattr(self, "sfs"): self.sfs.remove()
+
+
+```
+Loss function 
+```{python, loss_fn}
+#Script for Loss function
+
+import torch
+from torch import nn, LongTensor, FloatTensor
+import torch.nn.functional as F
+from fastai.basics import ifnone
+from utils import *
+
+def activ_to_bbox(acts, anchors, flatten=True):
+    "Extrapolate bounding boxes on anchors from the model activations."
+    if flatten:
+        acts.mul_(acts.new_tensor([[0.1, 0.1, 0.2, 0.2]])) #Can't remember where those scales come from, but they help regularize
+        centers = anchors[...,2:] * acts[...,:2] + anchors[...,:2]
+        sizes = anchors[...,2:] * torch.exp(acts[...,:2])
+        return torch.cat([centers, sizes], -1)
+    else: return [activ_to_bbox(act,anc) for act,anc in zip(acts, anchors)]
+    return res
+
+def bbox_to_activ(bboxes, anchors, flatten=True):
+    "Return the target of the model on `anchors` for the `bboxes`."
+    if flatten:
+        t_centers = (bboxes[...,:2] - anchors[...,:2]) / anchors[...,2:] 
+        t_sizes = torch.log(bboxes[...,2:] / anchors[...,2:] + 1e-8) 
+        return torch.cat([t_centers, t_sizes], -1).div_(bboxes.new_tensor([[0.1, 0.1, 0.2, 0.2]]))
+    else: return [activ_to_bbox(act,anc) for act,anc in zip(acts, anchors)]
+    return res
+
+def encode_class(idxs, n_classes):
+    target = idxs.new_zeros(len(idxs), n_classes).float()
+    mask = idxs != 0
+    i1s = LongTensor(list(range(len(idxs))))
+    target[i1s[mask],idxs[mask]-1] = 1
+    return target
+
+def create_anchors(sizes, ratios, scales, flatten=True):
+    "Create anchor of `sizes`, `ratios` and `scales`."
+    aspects = [[[s*math.sqrt(r), s*math.sqrt(1/r)] for s in scales] for r in ratios]
+    aspects = torch.tensor(aspects).view(-1,2)
+    anchors = []
+    for h,w in sizes:
+        #4 here to have the anchors overlap.
+        sized_aspects = 4 * (aspects * torch.tensor([2/h,2/w])).unsqueeze(0)
+        base_grid = create_grid((h,w)).unsqueeze(1)
+        n,a = base_grid.size(0),aspects.size(0)
+        ancs = torch.cat([base_grid.expand(n,a,2), sized_aspects.expand(n,a,2)], 2)
+        anchors.append(ancs.view(h,w,a,4))
+    return torch.cat([anc.view(-1,4) for anc in anchors],0) if flatten else anchors
+
+def create_grid(size):
+    "Create a grid of a given `size`."
+    H, W = size
+    grid = FloatTensor(H, W, 2)
+    linear_points = torch.linspace(-1+1/W, 1-1/W, W) if W > 1 else torch.tensor([0.])
+    grid[:, :, 1] = torch.ger(torch.ones(H), linear_points).expand_as(grid[:, :, 0])
+    linear_points = torch.linspace(-1+1/H, 1-1/H, H) if H > 1 else torch.tensor([0.])
+    grid[:, :, 0] = torch.ger(linear_points, torch.ones(W)).expand_as(grid[:, :, 1])
+    return grid.view(-1,2)
+
+def cthw2tlbr(boxes):
+    "Convert center/size format `boxes` to top/left bottom/right corners."
+    top_left = boxes[:,:2] - boxes[:,2:]/2
+    bot_right = boxes[:,:2] + boxes[:,2:]/2
+    return torch.cat([top_left, bot_right], 1)
+
+def tlbr2cthw(boxes):
+    "Convert top/left bottom/right format `boxes` to center/size corners."
+    center = (boxes[:,:2] + boxes[:,2:])/2
+    sizes = boxes[:,2:] - boxes[:,:2]
+    return torch.cat([center, sizes], 1)
+
+def match_anchors(anchors, targets, match_thr=0.5, bkg_thr=0.4):
+    "Match `anchors` to targets. -1 is match to background, -2 is ignore."
+    matches = anchors.new(anchors.size(0)).zero_().long() - 2
+    if targets.numel() == 0: return matches
+    ious = IoU_values(anchors, targets)
+    vals,idxs = torch.max(ious,1)
+    matches[vals < bkg_thr] = -1
+    matches[vals > match_thr] = idxs[vals > match_thr]
+    return matches
+
+def intersection(anchors, targets):
+    "Compute the sizes of the intersections of `anchors` by `targets`."
+    ancs, tgts = cthw2tlbr(anchors), cthw2tlbr(targets)
+    a, t = ancs.size(0), tgts.size(0)
+    ancs, tgts = ancs.unsqueeze(1).expand(a,t,4), tgts.unsqueeze(0).expand(a,t,4)
+    top_left_i = torch.max(ancs[...,:2], tgts[...,:2])
+    bot_right_i = torch.min(ancs[...,2:], tgts[...,2:])
+    sizes = torch.clamp(bot_right_i - top_left_i, min=0) 
+    return sizes[...,0] * sizes[...,1]
+
+def IoU_values(anchs, targs):
+    "Compute the IoU values of `anchors` by `targets`."
+    inter = intersection(anchs, targs)
+    anc_sz, tgt_sz = anchs[:,2] * anchs[:,3], targs[:,2] * targs[:,3]
+    union = anc_sz.unsqueeze(1) + tgt_sz.unsqueeze(0) - inter
+    return inter/(union+1e-8)
+
+class RetinaNetFocalLoss(nn.Module):
+    def __init__(self, gamma:float=2., alpha:float=0.25,  pad_idx:int=0, scales=None, ratios=None, reg_loss=F.smooth_l1_loss):
+        super().__init__()
+        self.gamma,self.alpha,self.pad_idx,self.reg_loss = gamma,alpha,pad_idx,reg_loss
+        self.scales = ifnone(scales, [1,2**(-1/3), 2**(-2/3)])
+        self.ratios = ifnone(ratios, [1/2,1,2])
+        
+    def _change_anchors(self, sizes) -> bool:
+        if not hasattr(self, 'sizes'): return True
+        for sz1, sz2 in zip(self.sizes, sizes):
+            if sz1[0] != sz2[0] or sz1[1] != sz2[1]: return True
+        return False
+    
+    def _create_anchors(self, sizes, device:torch.device):
+        self.sizes = sizes
+        self.anchors = create_anchors(sizes, self.ratios, self.scales).to(device)
+    
+    def _unpad(self, bbox_tgt, clas_tgt):
+        i = torch.min(torch.nonzero(clas_tgt-self.pad_idx))
+        return tlbr2cthw(bbox_tgt[i:]), clas_tgt[i:]-1+self.pad_idx
+    
+    def _focal_loss(self, clas_pred, clas_tgt):
+        encoded_tgt = encode_class(clas_tgt, clas_pred.size(1))
+        ps = torch.sigmoid(clas_pred.detach())
+        weights = encoded_tgt * (1-ps) + (1-encoded_tgt) * ps
+        alphas = (1-encoded_tgt) * self.alpha + encoded_tgt * (1-self.alpha)
+        weights.pow_(self.gamma).mul_(alphas)
+        clas_loss = F.binary_cross_entropy_with_logits(clas_pred, encoded_tgt, weights, reduction='sum')
+        return clas_loss
+        
+    def _one_loss(self, clas_pred, bbox_pred, clas_tgt, bbox_tgt):
+        bbox_tgt, clas_tgt = self._unpad(bbox_tgt, clas_tgt)
+        matches = match_anchors(self.anchors, bbox_tgt)
+        bbox_mask = matches>=0
+        if bbox_mask.sum() != 0:
+            bbox_pred = bbox_pred[bbox_mask]
+            bbox_tgt = bbox_tgt[matches[bbox_mask]]
+            bb_loss = self.reg_loss(bbox_pred, bbox_to_activ(bbox_tgt, self.anchors[bbox_mask]))
+        else: bb_loss = 0.
+        matches.add_(1)
+        clas_tgt = clas_tgt + 1
+        clas_mask = matches>=0
+        clas_pred = clas_pred[clas_mask]
+        clas_tgt = torch.cat([clas_tgt.new_zeros(1).long(), clas_tgt])
+        clas_tgt = clas_tgt[matches[clas_mask]]
+        return bb_loss + self._focal_loss(clas_pred, clas_tgt)/torch.clamp(bbox_mask.sum(), min=1.)
+    
+    def forward(self, output, bbox_tgts, clas_tgts):
+        clas_preds, bbox_preds, sizes = output
+        if self._change_anchors(sizes): self._create_anchors(sizes, clas_preds.device)
+        n_classes = clas_preds.size(2)
+        return sum([self._one_loss(cp, bp, ct, bt)
+                    for (cp, bp, ct, bt) in zip(clas_preds, bbox_preds, clas_tgts, bbox_tgts)])/clas_tgts.size(0)
+
+class SigmaL1SmoothLoss(nn.Module):
+    def forward(self, pred, targ):
+        reg_diff = torch.abs(targ - pred)
+        reg_loss = torch.where(torch.le(reg_diff, 1/9), 4.5 * torch.pow(reg_diff, 2), reg_diff - 1/18)
+        return reg_loss.mean()
+```
+
+[Model working video, 34:27-47:34](youtube.com/watch?v=5bSVug1YB3s&t=2922s)
+Model is fit. Will likely be working on this from now on.
+```{python, setup}
+#Only imports needed for this one?
+from fastai.vision.all import *
+from os import listdir
+#Listing the images as a list for us to get later
+IMG_PATH = Path('shoes_num')
+imgs = os.listdir(IMG_PATH)
+
+#I read that this was a Mac thing that sometimes these ._ files would show up after the above code is run? If these files are not in the list, no need to run. There should be 1299 images
+imgs.remove('._1.jpg')
+imgs.remove('._3.jpg')
+len(imgs)
+
+#Getting the urls and bboxes.
+urls, lbl_bbox = get_annotations(PATH /'shoe_textures.json')
+lbl_bbox[0]
+
+#Since we already downloaded our images to the repo, no need to change the urls.
+#Function to quickly get the img and associated bounding box
+img2bbox = dict(zip(imgs, lbl_bbox))
+
+#Checking that the first bbox lines up with the first image, should match with lbl_bbox[0]
+first = {k: img2bbox[k] for k in list(img2bbox)[:1]}
+first
+```
+
+Data Cleaning
+```{python, data_cleaning}
+
+#1. Pass in a file name and grab the file. 
+#2. Look for that file name's bounding box coordinates
+#3. Look for the bounding box class
+getters = [lambda o: IMG_PATH/o, lambda o: img2bbox[o][0], lambda o: img2bbox[o][1]]
+
+#Item and batch transforms that keep aspect ratio similar for images
+item_tfms = [Resize(224)]
+#Keypoint augmentations--don't use transfoms that will cause outputs to go off screen
+batch_tfms = [Rotate(), Flip(), Dihedral(), Normalize.from_stats(*imagenet_stats)]
+
+#Get our images, no matter what the input, return our list of imgs
+def get_train_ims(noop): return imgs
+
+#blocks - inputs and outputs - input image and then output bounding box and its label
+#n_inp = 1 is number of inputs is just the one image
+model = DataBlock(blocks = (ImageBlock, BBoxBlock, BBoxLblBlock),
+splitter = RandomSplitter(),
+get_items = get_train_ims,
+getters = getters,
+item_tfms = item_tfms,
+batch_tfms = batch_tfms,
+n_inp=1)
+
+
+dls = model.dataloaders('shoes_num')
+
+#Number of classes in this set
+get_c(dls)
+dls.show_batch()
+plt.show()
+```
+
+Model Fitting--Wohoooo!
+```{python, fit_model}
+#Cloning the repo that didn't work initially, took necessary functions and initiated them below instead
+# !git clone 'https://github.com/muellerzr/Practical-Deep-Learning-for-Coders-2.0.git'
+# from imports import *
+
+#Create body of the model
+encoder = create_body(resnet34, pretrained=True)
+get_c(dls)
+
+#-4 Bias is used because the lecturer said "It was pretty good"
+arch = RetinaNet(encoder, get_c(dls), final_bias=-4)
+
+#Example of creating a head of a model-notice it has linear layers at the end that will only output 4 features.
+create_head(124, 4)
+
+#Important to note that what we have will get us multiple results. This model head has a smoother, classifier and box_regressor to get everything needed
+arch.smoothers
+arch.classifier
+arch.box_regressor
+
+#For RetinaNet to work, define aspect ratio's and scales of what image should be. As such we will use -1/3 and -2/3 so that anxhor boxes will fit. 
+ratios = [1/2, 1, 2]
+scales = [1,2**(-1/3), 2**(-2/3)]
+
+#Loss function specified in below chunk
+crit = RetinaNetFocalLoss(scales=scales, ratios=ratios)
+
+#Splitting the pre-trained model further. Split into encoder and everything else
+def retinanet_split(m): return L(m.encoder,nn.Sequential(m.c5top6, m.p6top7, m.merges, m.smoothers, m.classifier, m.box_regressor)).map(params)
+
+
+####IMPORTANT####-- I ran into the same error as our R trial when I tried to fit the first time. This code fixed it, not really sure what it does
+
+#Found at https://forums.fast.ai/t/typeerror-no-implementation-found-for-torch-nn-functional-smooth-l1-loss-on-types-that-implement-torch-function-class-fastai-torch-core-tensorimage-class-fastai-vision-core-tensorbbox/90897
+TensorImage.register_func(torch.nn.functional.smooth_l1_loss, TensorImage, TensorBBox)
+TensorMultiCategory.register_func(TensorMultiCategory.mul, TensorMultiCategory, TensorImage)
+TensorImage.register_func(torch.nn.functional.binary_cross_entropy_with_logits, TensorImage, TensorMultiCategory)
+
+#BOOM! It worked!
+learn = Learner(dls, arch, loss_func=crit, splitter=retinanet_split)
+learn.freeze()
+#Find learning rate--I just used the learning rates from the tutorial, ours might be different. 
+learn.lr_find()
+learn.fit_one_cycle(8, slice(1e-5, 1e-4))
+
+#Save the learned model?
+
+
+```
+
+Functions needed for non-working trial. Most are deprecated. The model stuff is somewhere, most of the same transformation functions can be found under ?fastai>>vision>>augment
+
+[Deprecated function repository](https://github.com/Gokkulnath/fastai-v0.7/blob/19731a1a85305d201eedc214fb42db13b9e353af/fastai/transforms.py#L724)
+```{python, deprecated_functions}
 #All needed functions that are depricated in the latest version of fastai
 #Functions from 2019 tutorial
-from enum import IntEnum
+
+
 #Function to open our images
 def open_image(fn):
     """ Opens an image using OpenCV given the file path.
@@ -187,76 +569,100 @@ transforms_basic = [RandomRotate(10), RandomLighting(0.05, 0.05)]
 transforms_side_on  = transforms_basic + [RandomFlip()]
 
 inception_stats = ([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-inception_models = (inception_4, inceptionresnet_2)
-          
+inception_models = (model, resnet_2)
+ 
+inceptionModel = TorchModels.inception_v3(pretrained=True)         
+
+resnet_2 = tf.keras.applications.InceptionResNetV2(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax"
+)
 
 ```
 
-```{python}
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import json
-from fastai import *
-from fastai.tr import *
-from pathlib import Path
-from PIL import ImageDraw, ImageFont
-from matplotlib import patches, patheffects
-from fastai.learner import *
-from fastai.data import *
-from collections import defaultdict
-import collections
-import cv2
-import os
-from fastai.vision.all import *
+All code from [Deep Learnin Part 2 2018, 35:05-2:01:14](https://www.youtube.com/watch?v=Z0ssNAbe81M)
+Running the next 4 chunks will only let us view the bounding box on the data. No fit model.
+```{python, setup}
 
-
+#Path for the json file
 PATH = Path('data/shoes')
 list(PATH.iterdir())
+
+#Path for the data
 IMG_PATH = Path('shoes_num')
 shoe_pics = os.listdir(IMG_PATH)
+#Same as before. May need to remove these
+shoe_pics.remove('._1.jpg')
+shoe_pics.remove('._3.jpg')
+len(shoe_pics)
+
+
+#Load in urls, categories, and annotations from json file
 trn_j = json.load((PATH /'shoe_textures.json').open())
 trn_j.keys()
 
+#Create variables for each column so we can easily see them
 IMAGES, ANNOTATIONS, CATEGORIES = ['images', 'annotations', 'categories']
 trn_j[IMAGES][:1]
 trn_j[ANNOTATIONS][:2]
 trn_j[CATEGORIES][:4]
 
+#Create a dictionary for each variable and see our key value pairs--each picsture, bbox, and class will have its own id
 FILE_NAME, ID, IMG_ID, CAT_ID, BBOX = 'file_name', 'id', 'image_id', 'category_id', 'bbox'
 cats = dict((o[ID], o['name']) for o in trn_j[CATEGORIES])
 trn_fns = dict((o[ID], o[FILE_NAME]) for o in trn_j[IMAGES])
 trn_ids = [o[ID] for o in trn_j[IMAGES]]
 
+#Inserting the https//www. part for later, never end up using it, as we already have the images downloaded. Pretty cool first for loop in python though
+# x = 0
+# arr = []
+# #key,value
+# for x in trn_fns.keys():
+#   #arr[x = trn_fns[x][:8] + "www." + trn_fns[x][8:]
+#   #print(trn_fns[x])
+#   arr.append(trn_fns[x].split('//')[0] + "//www." + trn_fns[x].split('//')[1])
+# print(arr)
+# arr[1]
+
+#See the first img name with associated url
 im0_d = trn_j[IMAGES][0]
 im0_d[FILE_NAME], im0_d[ID]
+```
 
+Constructing Bounding Box
+```{python, bbox}
+#Convert the bounding box to from height/width to top-left/bottom right and switch x/y coordinates to be consistent with numpy
 trn_anno = collections.defaultdict(lambda:[])
 for o in trn_j[ANNOTATIONS]:
     if not o['ignore']:
         bb = o[BBOX]  # one bbox. looks like '[155, 96, 196, 174]'.
+        #bb[1], bb[0] switches x and y coordinates, next part switches h/w to tl/br
         bb = np.array([bb[1], bb[0], bb[3] + bb[1]- 1, bb[2] + bb[0] - 1 ]) # output '[96 155 269 350]'.
         trn_anno[o[IMG_ID]].append((bb, o[CAT_ID]))
-
 len(trn_anno)
-
 list(trn_anno.values())[0]
 
+#See first image annotations and associated class
 im_a0 = trn_anno[im0_d[ID]]
 im_a0
 
-im_a0 = im_a[0]
+#Can also see first bounding box coords and class if we wwant
+im_a0 = im_a0[0]
 im_a0
 
+#Just looking at our classes
 cats[6]
 
-trn_anno[17]
-
-#Some libraries take bounding boxes opposite of what we just did
+#Some libraries take bounding boxes opposite of what we just did, creates bounding box to hw
 def bb_hw(a):
     return np.array([ a[1], a[0], a[3] - a[1] + 1, a[2] - a[0] + 1 ])
 
-          
+#Open an image. Open_image code was taken from https://github.com/cedrickchee/knowledge/blob/master/courses/fast.ai/deep-learning-part-2/2018-edition/lesson-8-object-detection.md
 im = open_image("shoes_num/1.jpg")
 
 #Plot.subplots is super great about making our plots versatile
@@ -285,22 +691,15 @@ def draw_text(ax, xy, txt, sz=14):
   
 #Let's try it!!
 ax = show_img(im)
-b = bb_hw(im_a[0])
+b = bb_hw(im_a0[0])
 draw_rect(ax, b)
-draw_text(ax, b[:2], cats[im_a[1]])
-plt.show()
-#Inserting the https//www. part
-x = 0
-arr = []
-#key,value
-for x in trn_fns.keys():
-  #arr[x = trn_fns[x][:8] + "www." + trn_fns[x][8:]
-  #print(trn_fns[x])
-  arr.append(trn_fns[x].split('//')[0] + "//www." + trn_fns[x].split('//')[1])
-print(arr)
-arr[1]
+draw_text(ax, b[:2], cats[im_a0[1]])
 
-#packaging the entire thing together into a function
+#Need this to show any picture we call for
+plt.show()
+
+
+#packaging the entire drawing a bounding box on our picture
 def draw_im(im, ann):
   ax = show_img(im, figsize=(16,8))
   for b,c in ann:
@@ -317,7 +716,10 @@ def draw_idx(i):
 draw_idx(14)
 plt.show()
 ##Classifier is done! Now find largest item classifier
-#------------------------------------------------------------
+```
+
+Largest Bounding Box
+```{python, largest}
 def get_lrg(b):
     if not b:
         raise Exception()
@@ -339,9 +741,11 @@ ax = show_img(open_image(IMG_PATH/shoe_pics[23]), figsize=(5,10))
 draw_rect(ax,b)
 draw_text(ax, b[:2], cats[c], sz=16)
 plt.show() #Wohooo!
+```
 
+Fit the Model
+```{python, model_fit}
 #Create a csv of the data
-PATH2 = Path('shoes_num')
 (IMG_PATH/'tmp').mkdir(exist_ok=True)
 CSV = IMG_PATH/'tmp/shoes.csv'
 
@@ -354,32 +758,10 @@ f_model = resnet34
 sz = 224
 bs = 64
 
-learn = cnn_learner(data, models.resnet50, metrics=error_rate)
-tfms = tfms_from_model(resnet34, sz)
+#Tried to take every function that was used inside the tfms_from_model
 tfms = tfms_from_model(f_model, sz, aug_tfms=transforms_side_on, crop_type=CropType.NO)
 md = ImageClassifierData.from_csv(PATH, JPEGS, CSV, tfms=tfms, bs=bs)
 
 ```
 
-```{r}
-result <- fromJSON(file = 'shoe_textures.json')
 
-cats <- list()
-trn_fns <- list()
-trn_ids <- list()
-
-for(i in 1:length(result$categories)){
-  cats[i] = result$categories[[i]]$name
-}
-for(i in 1:length(result$images)){
-  trn_fns[i] = result$images[[i]]$file_name
-}
-for(i in 1:length(result$images)){
-  trn_ids[i] = result$images[[i]]$id
-}
-
-for(i in 1:length(trn_fns)){
-  trn_fns[[i]] <- stringr::str_replace(trn_fns[[i]], "https://", "https://www.")
-}
-
-```
