@@ -9,7 +9,7 @@ library(zeallot) # multi-assign operator %<-%
 
 library(reticulate)
 
-reticulate::use_virtualenv('r-reticulate')
+reticulate::use_condaenv('r-reticulate')
 library(fastai)
 library(rjson)
 library(imager)
@@ -18,7 +18,7 @@ library(imager)
 
 # Modifying code from https://cran.r-project.org/web/packages/fastai/vignettes/obj_detect.html
 
-c(images, lbl_bbox) %<-% get_annotations('shoe_textures.json')
+c(images, lbl_bbox) %<-% get_annotations('data/shoes/shoe_textures.json')
 names(lbl_bbox) <- images
 
 # # download image files
