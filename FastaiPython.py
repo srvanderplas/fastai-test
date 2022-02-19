@@ -293,8 +293,8 @@ n_inp=1
 )
 
 
-dls = model.dataloaders('shoes_num', bs = 4, num_workers = 0)
-
+dls = model.dataloaders('shoes_num', bs = 4, num_workers = 0, device = torch.device('cpu'))
+dls.c = 7
 #Number of classes in this set
 get_c(dls)
 dls.show_batch()
