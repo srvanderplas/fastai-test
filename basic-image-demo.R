@@ -4,14 +4,13 @@
 ## This creates a r-reticulate conda instance inside
 ## ~/.local/share/r-miniconda/envs/r-reticulate (on my machine)
 
-
-# reticulate::py_install('icevision', pip = TRUE)
-# reticulate::py_install('fastai', pip = TRUE)
+# reticulate::conda_install("r-reticulate", 'icevision', pip = TRUE)
+# reticulate::conda_install("r-reticulate", 'fastai', pip = TRUE)
 
 # devtools::install_github('eagerai/fastai')
 ## This step took forever but did originally finish. You may need to use gpu = F
 ## because I have a cuda-capable gpu on my desktop...
-# fastai::install_fastai(gpu = T, cuda_version = '10', overwrite = FALSE)
+# fastai::install_fastai(gpu = F, cuda_version = '10', overwrite = FALSE)
 
 library(fastai)
 library(magrittr)
