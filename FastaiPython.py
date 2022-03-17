@@ -356,8 +356,13 @@ learn.freeze()
 learn.lr_find()
 learn.fit_one_cycle(8, slice(1e-5, 1e-4))
 
-#Save the learned model?
+#Save the learned model? Look at documentation for this
+#learn.save will work
+#save_model("models/fastai", learn, opt=False, with_opt=False)
+#load_model(file, model, opt, with_opt=True, device=None, strict=True)
+
 #model.save("model_name")
 #Load it back in--tf.keras.models.load_model(path to saved model)
+
 
 # ------------------------------------------------------------------------------
