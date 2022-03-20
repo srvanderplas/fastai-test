@@ -12,7 +12,13 @@ from fastai.vision.all import *
 from fastai.vision.models.unet import _get_sz_change_idxs, hook_outputs
 from fastai.layers import init_default, ConvLayer
 from fastai.callback.hook import model_sizes
+# 
 
+import pdb
+import torchvision
+from object_detection_metrics.BoundingBox import BoundingBox, BBType, BBFormat
+from object_detection_metrics.BoundingBoxes import BoundingBoxes
+from object_detection_metrics.Evaluator import Evaluator
 
 # ---- Model Architecture ------------------------------------------------------
 def conv2d(ni:int, nf:int, ks:int=3, stride:int=1, padding:int=None, bias=False, init=nn.init.kaiming_normal_):
@@ -241,7 +247,7 @@ class SigmaL1SmoothLoss(nn.Module):
 
 # ---- Data Setup --------------------------------------------------------------
 #Listing the images as a list for us to get later
-IMG_PATH = Path('shoes_num')
+IMG_PATH = Path('shoe_imgs')
 imgs = os.listdir(IMG_PATH)
 
 # I read that this was a Mac thing that sometimes these ._ files would show up 
@@ -293,7 +299,7 @@ n_inp=1
 )
 
 
-dls = model.dataloaders('shoes_num', bs = 4, num_workers = 0, device = torch.device('cpu'))
+dls = model.dataloaders('shoe_imgs', bs = 4, num_workers = 0, device = torch.device('cuda'))
 dls.c = 7
 #Number of classes in this set
 get_c(dls)
@@ -349,20 +355,201 @@ TensorImage.register_func(torch.nn.functional.binary_cross_entropy_with_logits, 
 # tf.keras.backend.clear_session()
 torch.cuda.empty_cache()
 
+
+
+# ------------------------------------------------------------------------------
+
+# for images,label in enumerate(dls):
+#   print(images)
+#   return
+# 
+# 
+# 
+# # Get classification matrix
+# interp = ClassificationInterpretation.from_learner(learn)
+
+
+# ------------------------------------------------------------------------------
+# Object detection metrics code copied from:
+# https://github.com/jaidmin/Practical-Deep-Learning-for-Coders-2.0/blob/master/Computer%20Vision/06_Object_Detection_changed.ipynb
+def _retinanet_split(m): return L(m.encoder,nn.Sequential(m.c5top6, m.p6top7, m.merges, m.smoothers, m.classifier, m.box_regressor)).map(params)
+
+class ThresholdingAndNMS(Callback):
+    def __init__(self, threshold=0.3):
+        self.threshold=threshold
+    def after_loss(self):
+        if self.training: return # only do this expensive computation during validation/show_results
+        box_pred, cls_pred = self.learn.pred
+        scores = torch.sigmoid(cls_pred)
+        anchors = self.learn.loss_func.anchors
+        recovered_boxes = torch.clamp(cthw2tlbr(activ_to_bbox(box_pred, anchors).view(-1,4)).view(*box_pred.shape), min=-1, max=1)
+        cls_clean, box_clean = [],[]
+        
+        one_batch_boxes = []
+        one_batch_scores = []
+        one_batch_cls_pred = [] 
+        for i in range(cls_pred.shape[0]):
+            cur_box_pred = recovered_boxes[i]
+            cur_scores = scores[i]
+            max_scores, cls_idx = torch.max(cur_scores, dim=1)
+            thresh_mask = max_scores > self.threshold
+            
+            cur_keep_boxes = cur_box_pred[thresh_mask]
+            cur_keep_scores = cur_scores[thresh_mask]
+            cur_keep_cls_idx = cls_idx[thresh_mask]
+            
+            one_img_boxes = []
+            one_img_scores = []
+            one_img_cls_pred = []
+            for c in range(NUM_CLASSES):
+                cls_mask   = cur_keep_cls_idx==c
+                if cls_mask.sum()==0:
+                    continue
+                cls_boxes  = cur_keep_boxes[cls_mask]
+                cls_scores = cur_keep_scores[cls_mask].max(dim=1)[0]
+                nms_keep_idx = torchvision.ops.nms(cls_boxes,cls_scores, iou_threshold=0.5)
+                one_img_boxes += [*cls_boxes[nms_keep_idx]]
+                one_img_scores += [*cur_keep_scores[nms_keep_idx]]
+                one_img_cls_pred += [*tensor([c]*len(nms_keep_idx))]
+                
+            one_batch_boxes.append(one_img_boxes)
+            one_batch_scores.append(one_img_scores)
+            one_batch_cls_pred.append(one_img_cls_pred)
+        
+        
+        
+        #padded_boxes, padded_cls_pred = pad_and_merge(one_batch_boxes, one_batch_cls_pred)
+        #print(f"padded_boxes: {padded_boxes.shape} - padded_cls_pred: {padded_cls_pred.shape}")
+        #self.learn.pred = to_device((padded_boxes, padded_cls_pred), cls_pred.device)
+        padded_boxes, padded_scores = pad_and_merge_scores(one_batch_boxes, one_batch_scores)
+        #print(f"padded_boxes: {padded_boxes.shape} - padded_scores: {padded_scores.shape}")
+        self.learn.pred = to_device((padded_boxes, padded_scores), cls_pred.device)
+def pad_and_merge_scores(boxes_batch, scores_batch):
+    max_n_boxes = max([len(boxes_img) for boxes_img in boxes_batch])
+    
+    padded_boxes = torch.zeros(len(boxes_batch), max_n_boxes, 4).float()
+    padded_scores = torch.zeros(len(boxes_batch), max_n_boxes, NUM_CLASSES).float()
+    padded_scores[:,:] = 10 # set all to 10, if its a padded box, this is very ugly, the metric will remove 
+    # these rows
+    
+    for i, (boxes_img, scores_img) in enumerate(zip(boxes_batch, scores_batch)):
+        for j, (box, score) in enumerate(zip(boxes_img, scores_img)):
+            padded_boxes[i,j] = box
+            padded_scores[i,j] = score
+    return (TensorBBox(padded_boxes), TensorMultiCategory(padded_scores))
+def tlbr2xyxy(box, img_size=(224,224)):
+    h,w = img_size  # ????
+    # assume shape = (4)
+    # converting from pytorch -1 to 1 -> 0 to 1
+    #print(f"box shape: {box.shape}")
+    box = box.squeeze()
+    box = (box + 1) / 2
+    x1 = int(box[0]*w)
+    x2 = int(box[2]*w)
+    y1 = int(box[1]*h)
+    y2 = int(box[3]*h)
+    return [x1,y1,x2,y2]
+
+class mAP(Metric):
+    def __init__(self):
+        self.boxes = BoundingBoxes()
+        self.count = 0
+        self.res = None
+    
+    def reset(self):
+        self.boxes.removeAllBoundingBoxes()
+        self.count = 0
+    
+    def accumulate(self, learn):
+        # add predictions and ground truths
+        #pdb.set_trace()
+        pred_boxes, pred_scores = learn.pred
+        # remove padded boxes in batch
+        pred_cls = pred_scores.argmax(dim=-1)
+        gt_boxes, gt_cls = learn.yb
+        #pdb.set_trace()
+        for img_box_pred, img_score_pred, img_box_gt, img_cls_gt in zip(pred_boxes, pred_scores, gt_boxes, gt_cls): 
+            
+            pred_nonzero_idxs = (img_score_pred.sum(dim=-1) < 5).float().nonzero()
+            #pdb.set_trace()
+            if not pred_nonzero_idxs.numel() == 0:
+                img_cls_pred = img_score_pred[pred_nonzero_idxs].argmax(dim=-1)
+                #pdb.set_trace()
+                #add predictions for this img
+                for box_pred, cls_pred, score_pred in zip(img_box_pred[pred_nonzero_idxs], img_cls_pred, img_score_pred[pred_nonzero_idxs]):
+                    b = BoundingBox(self.count, learn.dls.vocab[cls_pred.item()+1], *tlbr2xyxy(box_pred), 
+                                bbType=BBType.Detected, format=BBFormat.XYX2Y2, classConfidence=score_pred.squeeze()[cls_pred.item()])
+                    self.boxes.addBoundingBox(b)
+                    #print(f"adding detection {learn.dls.vocab[cls_pred.item()]}")
+             #       pdb.set_trace()
+            
+            gt_nonzero_idxs   = img_cls_gt.nonzero()#.squeeze()
+            for box_gt, cls_gt in zip(img_box_gt[gt_nonzero_idxs], img_cls_gt[gt_nonzero_idxs]):
+                b = BoundingBox(self.count, learn.dls.vocab[cls_gt.item()], *tlbr2xyxy(box_gt), 
+                            bbType=BBType.GroundTruth, format=BBFormat.XYX2Y2)
+                self.boxes.addBoundingBox(b)
+                #print(f"adding gt {learn.dls.vocab[cls_gt.item()]}")
+          #      pdb.set_trace()
+            # increment counter
+            self.count += 1
+    
+    @property
+    def value(self):
+        if len(self.boxes.getBoundingBoxes()) == 0:
+            return 0
+        self.res = Evaluator().GetPascalVOCMetrics(self.boxes)
+        return np.mean([cat["AP"] for cat in self.res])
+    
+    @property
+    def name(self):
+        return "mAP"
+      
+class LookUpMetric(Metric):
+    def __init__(self, reference_metric, metric_name, lookup_idx):
+        store_attr(self, "reference_metric,metric_name,lookup_idx")
+    
+    def reset(self):
+        pass
+    def accumulate(self, learn):
+        pass
+    
+    @property
+    def value(self):
+        if self.reference_metric.res is None:
+            _ = self.reference_metric.value
+        return self.reference_metric.res[self.lookup_idx]["AP"]
+    
+    @property
+    def name(self):
+        return self.metric_name + "AP"
+    
+map_metric = mAP()
+metrics = [map_metric]
+
+# ------------------------------------------------------------------------------
+
+
+
+# ---- Fitting the model -----------------------------------------------------
 #BOOM! It worked!
-learn = Learner(dls, arch, loss_func=crit, splitter=retinanet_split)
+learn = Learner(dls, arch, loss_func=crit, splitter=retinanet_split, 
+                cbs=[ThresholdingAndNMS()], metrics=metrics)
+# learn.to_fp16()
 learn.freeze()
 #Find learning rate--I just used the learning rates from the tutorial, ours might be different. 
-learn.lr_find()
-learn.fit_one_cycle(8, slice(1e-5, 1e-4))
+# learn.lr_find()
+# learn.fit_one_cycle(8, slice(1e-5, 1e-4))
+learn.fit(8, lr = 7.585775892948732e-05) # too many values to unpack error
 
+learn.fine_tune(4)
+
+learn.save("8-epochs")
 #Save the learned model? Look at documentation for this
 #learn.save will work
-#save_model("models/fastai", learn, opt=False, with_opt=False)
+#save_model("models/fastai", learn, opt=True, with_opt=True)
 #load_model(file, model, opt, with_opt=True, device=None, strict=True)
 
 #model.save("model_name")
 #Load it back in--tf.keras.models.load_model(path to saved model)
-
 
 # ------------------------------------------------------------------------------
