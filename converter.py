@@ -3,13 +3,80 @@ import xml.etree.ElementTree as ET
 import utils # get_files
 import os
     
-def convert(file_path):
-  '''
-  A function modifies our xml file into standard xml file
-  Add image size, bndbox elements, remove pt element
+def is_bbox(obj):
   
-  Args:-
-      file_path : file location of our xml file
+    '''Return 1 if the object is a bounding box
+    
+    :param obj: an object element in xml file, polygon or bounding box
+    '''
+    return 1 if obj.findall('type') else 0
+  
+def finc_obj_coordinates(obj):
+  
+    '''Return two lists containing x coordinates, y coordinates of a bounding box or polygon
+    Remove the pt elements to avoid confusing
+      
+    :param obj: an object element in xml file, polygon or bounding box
+    '''
+    x_coords, y_coords = [], []
+    xml_bbox = obj.findall('polygon')
+    for bbox in xml_bbox:
+        pts = (obj.find('polygon')).findall('pt')
+        for pt in pts:
+            x_coords.append(pt.find('x').text)
+            y_coords.append(pt.find('y').text)
+        obj.remove(bbox)
+    return x_coords, y_coords
+  
+def write_bbox(xmin, xmax, ymin, ymax, obj):
+  
+    '''Return a BOUNDING BOX object with written coordinates
+    
+    :param xmin: minimum x coordinates of a bounding box or polygon
+    :param xmax: minimum x coordinates of a bounding box or polygon
+    :param ymin: minimum x coordinates of a bounding box or polygon
+    :param ymax: minimum x coordinates of a bounding box or polygon
+    :param obj: an object element in xml file, polygon or bounding box
+    '''
+    m = obj
+    b1 = ET.SubElement(m, 'bndbox')
+    c1 = ET.SubElement(b1, 'xmin')
+    c1.text = str(xmins[i])
+    c2 = ET.SubElement(b1, 'ymin')
+    c2.text = str(ymins[i])
+    c3 = ET.SubElement(b1, 'xmax')
+    c3.text = str(xmaxs[i])
+    c4 = ET.SubElement(b1, 'ymax')
+    c4.text = str(ymaxs[i])
+    return obj    
+      
+def polygon_remove(root, obj):
+
+    '''Remove a POLYGON element
+    
+    :param root: root of an xml file
+    :param object: a POLYGON element in xml file 
+    '''
+    root.remove(obj)
+
+def to_box(xcoord_list, ycoord_list, obj):
+  
+    '''Return a BOUNDING BOX element
+  
+    :param xcoord_list: list containing x coordinates
+    :param xcoord_list: list containing y coordinates
+    :param obj: an object element in xml file, polygon or bounding box
+    '''
+    xmin, xmax, ymin, ymax = min(xcoord_list), max(xcoord_list), min(ycoord_list), max(ycoord_list)
+    write_bbox(xmin, xmax, ymin, ymax, obj)
+    return obj
+    
+    
+def convert(file_path):
+  
+  ''' Return a voc annotation that can be parsed by VOCBBoxParser
+  
+  :param file_path : file location of our xml file
   '''
     f = file_path
     img_path = f.split('.')[0] + '.jpg'
@@ -30,42 +97,48 @@ def convert(file_path):
     b3.text = "3"
     
     # Add bndbox element and remove <pt>
-    xes, ys = [], []
     for obj in root.iter('object'):
-        if len(obj) != 0:
-            xml_bbox = obj.findall('polygon')
-            for bbox in xml_bbox:
-                pts = (obj.find('polygon')).findall('pt')
-                for pt in pts:
-                    xes.append(pt.find('x').text)
-                    ys.append(pt.find('y').text)
-        #         xml_bbox = obj.findall('polygon')
-    #         for each in xml_bbox:
-                obj.remove(bbox)
-        box_num = int(len(ys)/4)
-        # x coordinates lists
-        xmins = [xes[i*4] for i in range(box_num)]
-        xmaxs = [xes[i*4+1] for i in range(box_num)]
-        
-        # y coordinates lists
-        ymins = [ys[i*4] for i in range(box_num)]
-        ymaxs = [ys[i*4+2] for i in range(box_num)]
-        
-        # compare to get xmin, xmax, ymin, ymax, and write 
-        for i in range(box_num):
-            xmin, xmax = min(xmins[i], xmaxs[i]), max(xmins[i], xmaxs[i])
-            ymin, ymax = min(ymins[i], ymaxs[i]), max(ymins[i], ymaxs[i])
-            
-            m = obj
-            b1 = ET.SubElement(m, 'bndbox')
-            c1 = ET.SubElement(b1, 'xmin')
-            c1.text = str(xmins[i])
-            c2 = ET.SubElement(b1, 'ymin')
-            c2.text = str(ymins[i])
-            c3 = ET.SubElement(b1, 'xmax')
-            c3.text = str(xmaxs[i])
-            c4 = ET.SubElement(b1, 'ymax')
-            c4.text = str(ymaxs[i])
+        (xcoords_list, ycoords_list) = find_coordinates(obj)
+        to_bbox(xcoords_list, ycoords_list)
+    
+    
+    # xes, ys = [], []
+    # for obj in root.iter('object'):
+    #     if len(obj) != 0:
+    #         xml_bbox = obj.findall('polygon')
+    #         for bbox in xml_bbox:
+    #             pts = (obj.find('polygon')).findall('pt')
+    #             for pt in pts:
+    #                 xes.append(pt.find('x').text)
+    #                 ys.append(pt.find('y').text)
+    #     #         xml_bbox = obj.findall('polygon')
+    # #         for each in xml_bbox:
+    #             obj.remove(bbox)
+    #     box_num = int(len(ys)/4)
+    #     # x coordinates lists
+    #     xmins = [xes[i*4] for i in range(box_num)]
+    #     xmaxs = [xes[i*4+1] for i in range(box_num)]
+    #     
+    #     # y coordinates lists
+    #     ymins = [ys[i*4] for i in range(box_num)]
+    #     ymaxs = [ys[i*4+2] for i in range(box_num)]
+    #     
+    #     # compare to get xmin, xmax, ymin, ymax, and write 
+    #     for i in range(box_num):
+    #         xmin, xmax = min(xmins[i], xmaxs[i]), max(xmins[i], xmaxs[i])
+    #         ymin, ymax = min(ymins[i], ymaxs[i]), max(ymins[i], ymaxs[i])
+    #         
+    #         m = obj
+    #         b1 = ET.SubElement(m, 'bndbox')
+    #         c1 = ET.SubElement(b1, 'xmin')
+    #         c1.text = str(xmins[i])
+    #         c2 = ET.SubElement(b1, 'ymin')
+    #         c2.text = str(ymins[i])
+    #         c3 = ET.SubElement(b1, 'xmax')
+    #         c3.text = str(xmaxs[i])
+    #         c4 = ET.SubElement(b1, 'ymax')
+    #         c4.text = str(ymaxs[i])
+    
     t = ET.ElementTree(root)
     with open (file_path, "wb") as files :
             t.write(files)
