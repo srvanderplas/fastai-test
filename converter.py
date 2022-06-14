@@ -11,7 +11,7 @@ def is_bbox(obj):
     '''
     return 1 if obj.findall('type') else 0
   
-def finc_obj_coordinates(obj):
+def find_obj_coordinates(obj):
   
     '''Return two lists containing x coordinates, y coordinates of a bounding box or polygon
     Remove the pt elements to avoid confusing
@@ -23,8 +23,8 @@ def finc_obj_coordinates(obj):
     for bbox in xml_bbox:
         pts = (obj.find('polygon')).findall('pt')
         for pt in pts:
-            x_coords.append(pt.find('x').text)
-            y_coords.append(pt.find('y').text)
+            x_coords.append(int(pt.find('x').text))
+            y_coords.append(int(pt.find('y').text))
         obj.remove(bbox)
     return x_coords, y_coords
   
@@ -41,13 +41,13 @@ def write_bbox(xmin, xmax, ymin, ymax, obj):
     m = obj
     b1 = ET.SubElement(m, 'bndbox')
     c1 = ET.SubElement(b1, 'xmin')
-    c1.text = str(xmins[i])
+    c1.text = str(xmin)
     c2 = ET.SubElement(b1, 'ymin')
-    c2.text = str(ymins[i])
+    c2.text = str(ymin)
     c3 = ET.SubElement(b1, 'xmax')
-    c3.text = str(xmaxs[i])
+    c3.text = str(xmax)
     c4 = ET.SubElement(b1, 'ymax')
-    c4.text = str(ymaxs[i])
+    c4.text = str(ymax)
     return obj    
       
 def polygon_remove(root, obj):
@@ -59,7 +59,7 @@ def polygon_remove(root, obj):
     '''
     root.remove(obj)
 
-def to_box(xcoord_list, ycoord_list, obj):
+def to_bbox(xcoord_list, ycoord_list, obj):
   
     '''Return a BOUNDING BOX element
   
@@ -68,16 +68,17 @@ def to_box(xcoord_list, ycoord_list, obj):
     :param obj: an object element in xml file, polygon or bounding box
     '''
     xmin, xmax, ymin, ymax = min(xcoord_list), max(xcoord_list), min(ycoord_list), max(ycoord_list)
+    print('xmin, xmax: ', xmin, xmax, type(xmin))
     write_bbox(xmin, xmax, ymin, ymax, obj)
     return obj
     
     
 def convert(file_path):
   
-  ''' Return a voc annotation that can be parsed by VOCBBoxParser
-  
-  :param file_path : file location of our xml file
-  '''
+    ''' Return a voc annotation that can be parsed by VOCBBoxParser
+    
+    :param file_path : file location of our xml file
+    '''
     f = file_path
     img_path = f.split('.')[0] + '.jpg'
     tree = ET.parse(f)
@@ -98,8 +99,10 @@ def convert(file_path):
     
     # Add bndbox element and remove <pt>
     for obj in root.iter('object'):
-        (xcoords_list, ycoords_list) = find_coordinates(obj)
-        to_bbox(xcoords_list, ycoords_list)
+        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+        print(xcoords_list, ycoords_list)
+        print('--------')
+        to_bbox(xcoords_list, ycoords_list, obj)
     
     
     # xes, ys = [], []
@@ -140,8 +143,9 @@ def convert(file_path):
     #         c4.text = str(ymaxs[i])
     
     t = ET.ElementTree(root)
+    # file_path = '02' + file_path
     with open (file_path, "wb") as files :
-            t.write(files)
+        t.write(files)
     files.close()
 
 
@@ -150,4 +154,4 @@ for path in paths:
     path=str(path)
     convert(path)
 print('-----')
-    
+
