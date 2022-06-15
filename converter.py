@@ -79,6 +79,7 @@ def convert(file_path):
     
     :param file_path : file location of our xml file
     '''
+    
     f = file_path
     img_path = f.split('.')[0] + '.jpg'
     tree = ET.parse(f)
@@ -153,5 +154,5 @@ paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/testing'
 for path in paths:
     path=str(path)
     convert(path)
-print('-----')
+
 
