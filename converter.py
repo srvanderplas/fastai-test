@@ -13,6 +13,16 @@ def is_bbox(obj):
     '''
     return 1 if obj.findall('type') else 0
   
+  
+def is_drop(obj):
+    
+    '''Return 1 if the obj is a segment element
+    
+    :param obj: an object element in xml file, polygon or bounding box
+    '''
+    return 1 if obj.findall('segm') else 0
+    
+  
 def find_obj_coordinates(obj):
   
     '''Return two lists containing x coordinates, y coordinates of a bounding box or polygon
@@ -196,14 +206,21 @@ def convert(file_path):
 #     convert(path)
 
 
-paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/polygon test', extensions=['.xml']) # get the file paths
-f = str(paths[2])
-tree = ET.parse(f)
-root = tree.getroot()
-for obj in root.iter('object'):
-    if is_bbox(obj) == False:
-        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
-    ratio = polygon_contribution(xcoords_list, ycoords_list)
-    print('Ratio: ', ratio)
-    
-print('----')
+# ---------- Loop over all the polygons to find Area polygon/ Area max box -------
+paths = get_files('/Users/huamuxin/Documents/fastai-test/Original Data/Annotations', extensions=['.xml']) # get the file paths
+poly_contribs = []
+for path in paths:
+    f = str(path)
+    tree = ET.parse(f)
+    root = tree.getroot()
+    for obj in root.iter('object'):
+        if (is_bbox(obj)+ is_drop(obj) == 0):
+            (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+            if len(xcoords_list) >= 3:
+              # dc-legacy-98-slim-black-white-red_product_9065556_color_2125.xml, only one x coordinate
+                ratio = polygon_contribution(xcoords_list, ycoords_list)
+                poly_contribs.append(ratio)
+
+import matplotlib.pyplot as plt
+plt.hist(poly_contribs, bins = 10, edgecolor = 'red')
+plt.show() # Don't know why plotting is not working here, maybe R
