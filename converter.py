@@ -2,6 +2,8 @@ from PIL import Image
 import xml.etree.ElementTree as ET
 import utils # get_files
 import os
+import shapely
+from shapely.geometry import Polygon
     
 def is_bbox(obj):
   
@@ -72,7 +74,44 @@ def to_bbox(xcoord_list, ycoord_list, obj):
     write_bbox(xmin, xmax, ymin, ymax, obj)
     return obj
     
+def area(polygon_xcoord_list, polygon_ycoord_list):
     
+    ''' Return the area of a polygon
+    
+    :param polygon_xcoord_list: list containing x coordinates of a polygon
+    :param polygon_ycoord_list: list containing y coordinates of a polygon
+    '''
+    
+    polygon_obj = []
+    for i in range(len(polygon_xcoord_list)):
+        polygon_obj.append((int(polygon_xcoord_list[i]), int(polygon_ycoord_list[i])))
+    polygon = Polygon(polygon_obj)
+    return polygon.area
+    
+    
+def area_polygon_bbox(polygon_xcoord_list, polygon_ycoord_list):
+    
+    ''' Return the area of the largest bbox made from a polygon
+    
+    :param polygon_xcoord_list: list containing x coordinates of a polygon
+    :param polygon_ycoord_list: list containing y coordinates of a polygon
+    '''
+    
+    xmin, xmax, ymin, ymax = min(polygon_xcoord_list), max(polygon_xcoord_list), min(polygon_ycoord_list), max(polygon_ycoord_list)
+    area = (int(ymax) - int(ymin)) * (int(xmax) - int(xmin))
+    return area
+  
+def polygon_contribution(polygon_xcoord_list, polygon_ycoord_list):
+    
+    ''' Return the contribution of polygon in a bbox
+    
+    :param polygon_xcoord_list: list containing x coordinates of a polygon
+    :param polygon_ycoord_list: list containing y coordinates of a polygon
+    '''
+    poly_area = area(polygon_xcoord_list, polygon_ycoord_list)
+    bbox_area = area_polygon_bbox(polygon_xcoord_list, polygon_ycoord_list)
+    return poly_area/ bbox_area
+  
 def convert(file_path):
   
     ''' Return a voc annotation that can be parsed by VOCBBoxParser
@@ -150,9 +189,21 @@ def convert(file_path):
     files.close()
 
 
-paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/testing', extensions=['.xml']) # get the file paths
-for path in paths:
-    path=str(path)
-    convert(path)
+# ---------- converting our xml to standard voc parser ready xml ------------
+# paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/testing', extensions=['.xml']) # get the file paths
+# for path in paths:
+#     path=str(path)
+#     convert(path)
 
 
+paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/polygon test', extensions=['.xml']) # get the file paths
+f = str(paths[2])
+tree = ET.parse(f)
+root = tree.getroot()
+for obj in root.iter('object'):
+    if is_bbox(obj) == False:
+        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+    ratio = polygon_contribution(xcoords_list, ycoords_list)
+    print('Ratio: ', ratio)
+    
+print('----')
