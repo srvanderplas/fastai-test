@@ -4,6 +4,8 @@ import utils # get_files
 import os
 import shapely
 from shapely.geometry import Polygon
+import pandas as pd
+import numpy as np
     
 def is_bbox(obj):
   
@@ -40,6 +42,7 @@ def find_obj_coordinates(obj):
         obj.remove(bbox)
     return x_coords, y_coords
   
+  
 def write_bbox(xmin, xmax, ymin, ymax, obj):
   
     '''Return a BOUNDING BOX object with written coordinates
@@ -61,6 +64,7 @@ def write_bbox(xmin, xmax, ymin, ymax, obj):
     c4 = ET.SubElement(b1, 'ymax')
     c4.text = str(ymax)
     return obj    
+  
       
 def polygon_remove(root, obj):
 
@@ -70,6 +74,7 @@ def polygon_remove(root, obj):
     :param object: a POLYGON element in xml file 
     '''
     root.remove(obj)
+    
 
 def to_bbox(xcoord_list, ycoord_list, obj):
   
@@ -83,6 +88,7 @@ def to_bbox(xcoord_list, ycoord_list, obj):
     print('xmin, xmax: ', xmin, xmax, type(xmin))
     write_bbox(xmin, xmax, ymin, ymax, obj)
     return obj
+  
     
 def area(polygon_xcoord_list, polygon_ycoord_list):
     
@@ -111,6 +117,7 @@ def area_polygon_bbox(polygon_xcoord_list, polygon_ycoord_list):
     area = (int(ymax) - int(ymin)) * (int(xmax) - int(xmin))
     return area
   
+  
 def polygon_contribution(polygon_xcoord_list, polygon_ycoord_list):
     
     ''' Return the contribution of polygon in a bbox
@@ -121,6 +128,7 @@ def polygon_contribution(polygon_xcoord_list, polygon_ycoord_list):
     poly_area = area(polygon_xcoord_list, polygon_ycoord_list)
     bbox_area = area_polygon_bbox(polygon_xcoord_list, polygon_ycoord_list)
     return poly_area/ bbox_area
+  
   
 def convert(file_path):
   
@@ -154,7 +162,8 @@ def convert(file_path):
         print('--------')
         to_bbox(xcoords_list, ycoords_list, obj)
     
-    
+
+# ---------- For testing, can be neglected -------------    
     # xes, ys = [], []
     # for obj in root.iter('object'):
     #     if len(obj) != 0:
@@ -192,27 +201,31 @@ def convert(file_path):
     #         c4 = ET.SubElement(b1, 'ymax')
     #         c4.text = str(ymaxs[i])
     
-    t = ET.ElementTree(root)
-    # file_path = '02' + file_path
-    with open (file_path, "wb") as files :
-        t.write(files)
-    files.close()
+    # t = ET.ElementTree(root)
+    # # file_path = '02' + file_path
+    # with open (file_path, "wb") as files :
+    #     t.write(files)
+    # files.close()
 
 
-# ---------- converting our xml to standard voc parser ready xml ------------
+# ------------ converting our xml to standard voc parser ready xml -------------
 # paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/testing', extensions=['.xml']) # get the file paths
 # for path in paths:
 #     path=str(path)
 #     convert(path)
 
 
-# ---------- Loop over all the polygons to find Area polygon/ Area max box -------
+
+# ---------- Loop over all the polygons to find Area polygon/ Area max box -----
 paths = get_files('/Users/huamuxin/Documents/fastai-test/Original Data/Annotations', extensions=['.xml']) # get the file paths
 poly_contribs = []
+imgs = []
+c = []
 for path in paths:
     f = str(path)
     tree = ET.parse(f)
     root = tree.getroot()
+    count = 0
     for obj in root.iter('object'):
         if (is_bbox(obj)+ is_drop(obj) == 0):
             (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
@@ -220,7 +233,20 @@ for path in paths:
               # dc-legacy-98-slim-black-white-red_product_9065556_color_2125.xml, only one x coordinate
                 ratio = polygon_contribution(xcoords_list, ycoords_list)
                 poly_contribs.append(ratio)
+                count += 1
+    c.append(count) # c has the number of polygons in an image
+    if count != 0:
+        files = [f] * count
+        imgs.append(files)
 
-import matplotlib.pyplot as plt
-plt.hist(poly_contribs, bins = 10, edgecolor = 'red')
-plt.show() # Don't know why plotting is not working here, maybe R
+
+# -------- Save the image names and ratios as dataframe ------------------
+df = pd.DataFrame(poly_contribs, index = sum(imgs, []), 
+                  columns = ['polygon_ratio'])
+df.to_csv('polygon_contribs')
+
+
+# ------------ Plot the histogram of ratios distribution -----------------
+# import matplotlib.pyplot as plt
+# plt.hist(poly_contribs, bins = 10, edgecolor = 'red')
+# plt.show() # Don't know why plotting is not working here, maybe R
