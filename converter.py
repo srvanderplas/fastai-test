@@ -24,7 +24,8 @@ def is_drop(obj):
     '''
     return 1 if obj.findall('segm') else 0
     
-  
+
+
 def find_obj_coordinates(obj):
   
     '''Return two lists containing x coordinates, y coordinates of a bounding box or polygon
@@ -134,11 +135,12 @@ def convert(file_path):
   
     ''' Return a voc annotation that can be parsed by VOCBBoxParser
     
-    :param file_path : file location of our xml file
+    :param file_path: file location of our xml file
     '''
     
     f = file_path
-    img_path = f.split('.')[0] + '.jpg'
+    loc = file_path.replace('Annotations', 'Images')
+    img_path = loc.split('.')[0] + '.jpg'
     tree = ET.parse(f)
     root = tree.getroot()
     
@@ -152,16 +154,40 @@ def convert(file_path):
     b1.text = str(img.width)
     b2 = ET.SubElement(m1, 'height')
     b2.text = str(img.height)
-    b3 = ET.SubElement(m1, 'depth') # 
+    b3 = ET.SubElement(m1, 'depth') 
     b3.text = "3"
     
+    
+    
+    # def polygon_contribution(xcoords_list, ycoords_list):
+    # if (is_bbox(obj)+ is_drop(obj) == 0):
+    #     (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+    #     if len(xcoords_list) >= 3:
+    #     # dc-legacy-98-slim-black-white-red_product_9065556_color_2125.xml, only one x coordinate
+    #       ratio = polygon_contribution(xcoords_list, ycoords_list)
+
+
     # Add bndbox element and remove <pt>
     for obj in root.iter('object'):
-        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+        if (is_bbox(obj)+ is_drop(obj) == 0):
+            (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+            if len(xcoords_list) >= 3:
+                ratio = polygon_contribution(xcoords_list, ycoords_list)
+        if ratio < 0.7:
+            polygon_remove(root, obj)
         print(xcoords_list, ycoords_list)
         print('--------')
         to_bbox(xcoords_list, ycoords_list, obj)
     
+    t = ET.ElementTree(root)
+    # file_path2 = '02' + file_path
+    file_path2 = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020_1.xml'
+    with open (file_path2, "wb") as files :
+        t.write(files)
+    # files.close()
+    
+path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020.xml'
+convert(path)    
 
 # ---------- For testing, can be neglected -------------    
     # xes, ys = [], []
@@ -206,16 +232,20 @@ def convert(file_path):
     # with open (file_path, "wb") as files :
     #     t.write(files)
     # files.close()
+# ------------------------------------------------------------------------------
 
 
 # ------------ converting our xml to standard voc parser ready xml -------------
-# paths = get_files('/Users/huamuxin/Documents/fastai-test/VOCParser_test/testing', extensions=['.xml']) # get the file paths
+# paths = get_files('/Users/huamuxin/Documents/fastai-test/Modified data/Annotations', extensions=['.xml']) # get the file paths
 # for path in paths:
 #     path=str(path)
 #     convert(path)
 
+path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020.xml'
+convert(path)
 
 
+    
 # ---------- Loop over all the polygons to find Area polygon/ Area max box -----
 paths = get_files('/Users/huamuxin/Documents/fastai-test/Original Data/Annotations', extensions=['.xml']) # get the file paths
 poly_contribs = []
