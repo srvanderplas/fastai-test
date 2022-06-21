@@ -169,24 +169,28 @@ def convert(file_path):
 
     # Add bndbox element and remove <pt>
     for obj in root.iter('object'):
-        if (is_bbox(obj)+ is_drop(obj) == 0):
-            (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
-            if len(xcoords_list) >= 3:
-                ratio = polygon_contribution(xcoords_list, ycoords_list)
-        if ratio < 0.7:
-            polygon_remove(root, obj)
+        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
         print(xcoords_list, ycoords_list)
+        if (is_bbox(obj)+ is_drop(obj) == 0):
+            if len(xcoords_list) < 3:
+                polygon_remove(root, obj)
+                continue
+            else:
+                ratio = polygon_contribution(xcoords_list, ycoords_list)
+                if ratio < 0.7:
+                    polygon_remove(root, obj)
+                    # continue
         print('--------')
         to_bbox(xcoords_list, ycoords_list, obj)
     
     t = ET.ElementTree(root)
     # file_path2 = '02' + file_path
-    file_path2 = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020_1.xml'
+    file_path2 = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/western-chief-kids-limited-edition-printed-rain-boots-toddler-little-kid-pink-wings_product_7257376_color_280454_1.xml'
     with open (file_path2, "wb") as files :
         t.write(files)
     # files.close()
     
-path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020.xml'
+path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/western-chief-kids-limited-edition-printed-rain-boots-toddler-little-kid-pink-wings_product_7257376_color_280454.xml'
 convert(path)    
 
 # ---------- For testing, can be neglected -------------    
