@@ -86,7 +86,6 @@ def to_bbox(xcoord_list, ycoord_list, obj):
     :param obj: an object element in xml file, polygon or bounding box
     '''
     xmin, xmax, ymin, ymax = min(xcoord_list), max(xcoord_list), min(ycoord_list), max(ycoord_list)
-    print('xmin, xmax: ', xmin, xmax, type(xmin))
     write_bbox(xmin, xmax, ymin, ymax, obj)
     return obj
   
@@ -156,97 +155,34 @@ def convert(file_path):
     b2.text = str(img.height)
     b3 = ET.SubElement(m1, 'depth') 
     b3.text = "3"
-    
-    
-    
-    # def polygon_contribution(xcoords_list, ycoords_list):
-    # if (is_bbox(obj)+ is_drop(obj) == 0):
-    #     (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
-    #     if len(xcoords_list) >= 3:
-    #     # dc-legacy-98-slim-black-white-red_product_9065556_color_2125.xml, only one x coordinate
-    #       ratio = polygon_contribution(xcoords_list, ycoords_list)
-
 
     # Add bndbox element and remove <pt>
-    for obj in root.iter('object'):
-        (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
-        print(xcoords_list, ycoords_list)
-        if (is_bbox(obj)+ is_drop(obj) == 0):
-            if len(xcoords_list) < 3:
-                polygon_remove(root, obj)
-                continue
-            else:
-                ratio = polygon_contribution(xcoords_list, ycoords_list)
-                if ratio < 0.7:
-                    polygon_remove(root, obj)
-                    # continue
-        print('--------')
-        to_bbox(xcoords_list, ycoords_list, obj)
-    
+    for obj in root.findall('object'):
+        if is_drop(obj):
+            polygon_remove(root, obj)
+        else:
+            (xcoords_list, ycoords_list) = find_obj_coordinates(obj)
+            print(xcoords_list, ycoords_list)
+            if (is_bbox(obj)+ is_drop(obj) == 0):
+                if len(xcoords_list) >= 3:
+                    ratio = polygon_contribution(xcoords_list, ycoords_list)
+                    if ratio < 0.7:
+                        polygon_remove(root, obj)
+            to_bbox(xcoords_list, ycoords_list, obj)
+        
     t = ET.ElementTree(root)
-    # file_path2 = '02' + file_path
-    file_path2 = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/western-chief-kids-limited-edition-printed-rain-boots-toddler-little-kid-pink-wings_product_7257376_color_280454_1.xml'
-    with open (file_path2, "wb") as files :
+    with open (file_path, "wb") as files :
         t.write(files)
     # files.close()
     
-path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/western-chief-kids-limited-edition-printed-rain-boots-toddler-little-kid-pink-wings_product_7257376_color_280454.xml'
-convert(path)    
 
-# ---------- For testing, can be neglected -------------    
-    # xes, ys = [], []
-    # for obj in root.iter('object'):
-    #     if len(obj) != 0:
-    #         xml_bbox = obj.findall('polygon')
-    #         for bbox in xml_bbox:
-    #             pts = (obj.find('polygon')).findall('pt')
-    #             for pt in pts:
-    #                 xes.append(pt.find('x').text)
-    #                 ys.append(pt.find('y').text)
-    #     #         xml_bbox = obj.findall('polygon')
-    # #         for each in xml_bbox:
-    #             obj.remove(bbox)
-    #     box_num = int(len(ys)/4)
-    #     # x coordinates lists
-    #     xmins = [xes[i*4] for i in range(box_num)]
-    #     xmaxs = [xes[i*4+1] for i in range(box_num)]
-    #     
-    #     # y coordinates lists
-    #     ymins = [ys[i*4] for i in range(box_num)]
-    #     ymaxs = [ys[i*4+2] for i in range(box_num)]
-    #     
-    #     # compare to get xmin, xmax, ymin, ymax, and write 
-    #     for i in range(box_num):
-    #         xmin, xmax = min(xmins[i], xmaxs[i]), max(xmins[i], xmaxs[i])
-    #         ymin, ymax = min(ymins[i], ymaxs[i]), max(ymins[i], ymaxs[i])
-    #         
-    #         m = obj
-    #         b1 = ET.SubElement(m, 'bndbox')
-    #         c1 = ET.SubElement(b1, 'xmin')
-    #         c1.text = str(xmins[i])
-    #         c2 = ET.SubElement(b1, 'ymin')
-    #         c2.text = str(ymins[i])
-    #         c3 = ET.SubElement(b1, 'xmax')
-    #         c3.text = str(xmaxs[i])
-    #         c4 = ET.SubElement(b1, 'ymax')
-    #         c4.text = str(ymaxs[i])
-    
-    # t = ET.ElementTree(root)
-    # # file_path = '02' + file_path
-    # with open (file_path, "wb") as files :
-    #     t.write(files)
-    # files.close()
-# ------------------------------------------------------------------------------
 
 
 # ------------ converting our xml to standard voc parser ready xml -------------
-# paths = get_files('/Users/huamuxin/Documents/fastai-test/Modified data/Annotations', extensions=['.xml']) # get the file paths
-# for path in paths:
-#     path=str(path)
-#     convert(path)
-
-path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/alegria-dayna-jet-luster_product_8738912_color_706020.xml'
-convert(path)
+paths = get_files('/Users/huamuxin/Documents/fastai-test/Modified data/Annotations', extensions=['.xml']) # get the file paths
+for path in paths:
+    path=str(path)
+    convert(path)
 
 
     
