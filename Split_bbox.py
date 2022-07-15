@@ -29,13 +29,44 @@ def split_bbox(file_path):
         t.write(file)
     
 
-
+def all_classes(file_path):
+    f = file_path
+    tree = ET.parse(f)
+    root = tree.getroot()
+    for obj in root.findall('object'):
+        names = (obj.find('name').text).split(',')
+        
 paths = get_files('/Users/huamuxin/Documents/fastai-test/Modified data/Modified Annotation', extensions=['.xml']) # fastai
+class_map = set([])
 for path in paths:
     path=str(path)
-    split_bbox(path)
-# path = r'/Users/huamuxin/Documents/fastai-test/Modified Data/Annotations/5-11-tactical-a-t-a-c-8-coyote-coyote_product_8851777_color_293417.xml'
 
+# ------ This part finds out unique classes --------------
+    f = path
+    tree = ET.parse(f)
+    root = tree.getroot()
+    for obj in root.findall('object'):
+        names = obj.find('name').text
+        class_map.add(names)
+print(class_map)
+# Looks more cleaning work than expected
+  # 'qud', 'rectangle', 'hex', 'rounded', 'othre', 'hexagon', 'circle_', 'triangle',
+  # 'etxt', 'stars', 'qudarilateral', 'cirlce', 'quardilateral', 'quadrilateral', 
+  # 'ext', 'cirle', 'quadrilaterl', 'chrevron', 'othere', 'star', 'triangl', 
+  # 'elongated', 'chervron', 'toe', 'circles', 'texture_crepe', 'background', 
+  # 'iother', 'hexagon chevron', 'hatching', None, 'qiad', 'lines', 'quadilateral',
+  # 'quadrilaterals', 'smooth', 'irregular', 'qua', 'ribbon', 'circle text', 'star.',
+  # 'circe', 'quadrliateral', 'ciricle', 'circle triangle', 'quad', 'octagon', 'texture',
+  # 'cricle', 'lkns', 'pentagons', 'crepe', 'texxt', 'chevrons', 'triangles', 
+  # 'texture_smooth', 'bowite', 'blowtie', 'tet', 'oter', 'bowtie', 'circleline',
+  # 'pentagon', 'quarilateral', 'heagon', 'region', 'ttriangle', 'start', 'triangels',
+  # 'circle', 'qaud', 'heel', 'cheron', 'star quad', 'quadrilateralline', 'chrvron',
+  # 'polygon', 'trianlges', 'lie', 'quadrilatteral', 'excludue', 'quadmline',
+  # 'quadrilteral', 'trianglee', 'exclud', 'other', 'quadrilaterlal', 'exclude', 
+  # 'ribon', 'cicle', 'text', 'logo', 'qyad', 'chevron', 'line', 'bootie', 
+  # 'quadcircle', 'curved line'
+
+    # split_bbox(path)
 
 t1 = time.time()
 print('The whole splitting process costs', t1-t0, 's')
