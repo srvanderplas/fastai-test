@@ -38,13 +38,10 @@ for path in paths:
 
 # ------ This part finds out unique classes --------------
     f = path
-    n_file += 1
     tree = ET.parse(f)
     root = tree.getroot()
     for obj in root.findall('object'):
         names = obj.find('name').text
-        if names == None:
-            print(f)
         class_map.add(names)
 print(class_map)
 # ------ End of finding out unique classes --------------
@@ -54,7 +51,8 @@ print(class_map)
 t1 = time.time()
 print('The whole splitting process costs', t1-t0, 's')
 
-'qud', 'rectangle', 'hex', 'rounded', 'othre', 'hexagon', 'circle_', 'triangle',
+
+cm = ['qud', 'rectangle', 'hex', 'rounded', 'othre', 'hexagon', 'circle_', 'triangle',
 'curved', 'etxt', 'stars', 'qudarilateral', 'cirlce', 'quardilateral', 
 'quadrilateral', 'ext', 'cirle', 'quadrilaterl', 'chrevron', 'othere', 'star', 
 'triangl', 'elongated', 'chervron', 'toe', 'circles', 'texture_crepe', 
@@ -67,8 +65,74 @@ print('The whole splitting process costs', t1-t0, 's')
 'circle', 'qaud', 'heel', 'cheron', 'quadrilateralline', 'chrvron', 'polygon', 
 'trianlges', 'lie', 'quadrilatteral', 'excludue', 'quadmline', 'quadrilteral', 
 'trianglee', 'exclud', 'other', 'quadrilaterlal', 'exclude', 'ribon', 'cicle', 
-'text', 'logo', 'qyad', 'chevron', 'line', 'bootie', 'quadcircle'
+'text', 'logo', 'qyad', 'chevron', 'line', 'bootie', 'quadcircle']
+
+'rounded', 'hexagon', 'triangle',
+'curved', 
+ 'star', 
+'elongated', 'toe', 'texture_crepe', 
+'background', 'hatching', 
+ 'smooth', 'irregular', 'ribbon',  
+'quad', 'octagon', 'texture', 'lkns', 
+'pentagons', 'crepe', 'texture_smooth', 
+'bowtie', 'circleline', 'pentagon', 
+'heagon', 'region',  
+'circle', 'heel', 'quadrilateralline', 'polygon', 
+'quadmline', 
+'other', 'exclude', 
+'text', 'logo',  'chevron', 'line', 'quadcircle']
 
 
+chevron = ['chrevron', 'chervron', 'chrvron', 'chevrons', 'cheron', ]
+
+circle = ['circle_', 'cirlce', 'cirle', 'circles', 'circe', 'ciricle',
+          'cricle', 'cicle', ]
+          
+text = ['etxt', 'ext', 'tet', 'texxt', ]
+
+quad = ['qud', 'qiad', 'qua', 'qyad', 'qaud',
+        'quadrilatteral', 'quadrliateral', 'quadrilaterals',
+        'quardilateral', 'quadrilaterlal','quarilateral', 
+        'quadrilaterl', 'quadilateral', 'qudarilateral', 'quadrilteral', 
+        'rectangle', 'quadrilateral'????]]
+        
+other = ['othre', 'othere', 'iother', 'oter', ]
+
+triangle = ['triangl', 'triangles', 'triangels', 'trianglee', 'trianlges', 
+            'ttriangle', ]
+            
+exclude = ['exclud', 'excludue', ]
+
+star = ['start', 'star.', 'star,','stars', ]
+
+bowtie = ['bootie', 'blowtie', 'bowite', ]
+
+line = ['lie', 'lines', ]
+
+ribbon = ['ribon', ]
+
+hexagon = ['hex', ]
 
 
+paths = get_files('/Users/huamuxin/Documents/fastai-test/Modified data/Modified Annotation', extensions=['.xml']) # fastai
+class_map = set([])
+for path in paths:
+    path=str(path)
+    tree = ET.parse(path)
+    root = tree.getroot()
+    for obj in root.findall('object'):
+        name = obj.find('name').text
+        
+        
+#     rep = len(names) - 1
+#     while rep > 0:
+#         dup = copy.deepcopy(obj)
+#         dup.find('name').text = names[rep]
+#         root.append(dup)
+#         rep -= 1
+#         if rep == 0:
+#             obj.find('name').text = names[0]
+# 
+# t = ET.ElementTree(root)
+# with open (file_path, "wb") as file :
+#     t.write(file)
