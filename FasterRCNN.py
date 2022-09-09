@@ -100,5 +100,25 @@ class VOC_dataset(Dataset):
         targets = [{'labels' : i['target']['labels'], 'boxes':i['target']['boxes']} for i in batch]
         
         return {'images' : images, 'targets' : targets}
-      
-      
+
+# Need to write a easy nn to test this Dataset class
+
+'''
+Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
+Here I adopt Finetuning from a pretrained model for a quick start, will look at different backbone later
+'''
+
+import torchvision
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
+def get_object_detection_model(num_classes):
+  model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+  
+  num_classes = len(['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
+           'star', 'bowtie', 'line', 'ribbon'])
+  
+  in_features = model.roi_heads.box_predictor.cls_score.in_features
+  model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+  
+  return model
+  
