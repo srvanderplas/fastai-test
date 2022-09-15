@@ -46,28 +46,29 @@ from torch.utils.data.sampler import SequentialSampler
 from matplotlib import pyplot as plt
 
 import torchvision.datasets as datasets
-
+from torchvision import transforms
+from torch.utils.data import DataLoader
 import xml.etree.ElementTree as ET
 
 dataset = datasets.VOCDetection('/Users/huamuxin/Documents/fastai-test/Modified Data',image_set = 'train', year='2012', transform=False)
 
-class VOC_dataset(Dataset):
+class VocDataset(Dataset):
     def __init__(self, dataset_path, transform = None):
         super().__init__()
-        self.dataset_path = dataset_paths
+        self.dataset_path = dataset_path
         self.image_path = os.path.join(dataset_path, 'JPEGImages')
-        self.target_path = os.path.join(dataset_path, 'Annotations') # XML path
+        self.target_path = os.path.join(dataset_path, 'Modified Annotations') # XML path
         assert os.path.exists(self.image_path), 'JPEGImages does not exist'
         assert os.path.exists(self.image_path), 'Annotations does not exist'
         
-        self.image_index_list = [s.split('.')[0] for i in os.listdir(self.image_path)]
-        self.target_index_list = [s.split('.')[0] for i in os.listdir(self.target_path)]
-        assert self.image_inded_list == self.target_index_list, 'image names do not match xml names'
+        self.image_index_list = [s.split('.')[0] for s in os.listdir(self.image_path)]
+        self.target_index_list = [s.split('.')[0] for s in os.listdir(self.target_path)]
+        # assert self.image_index_list == self.target_index_list, 'image names do not match xml names'
         
         self.length = len(self.image_index_list)
         self.transform = transform
     
-    def simple_parse_xml(self, target_name): # could imporove
+    def simple_parse_xml(self, target_name): # could be imporoved by reccursion
         tree = ET.parse(target_name) # target name is the path of target file
         root = tree.getroot()
         labels = [] # list of all labels in current xml file
@@ -102,7 +103,27 @@ class VOC_dataset(Dataset):
         return {'images' : images, 'targets' : targets}
 
 # Need to write a easy nn to test this Dataset class
-
+def testing():
+    transform = transforms.Compose(
+        [
+        transforms.ToTensor(),
+        transforms.Normalize((0, 0, 0), (255, 255, 255))
+        ]
+    )
+    
+    dataset_path = './Modified Data'
+    shoe_dataset = VocDataset(dataset_path = dataset_path, transform = transform)
+    shoe_dataloader = DataLoader(shoe_dataset, batch_size = 4, shuffle = True,
+                                 collate_fn = shoe_dataset.collate_fn_)
+    # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes), pretrained=True, pretrained_backbone = False)
+    # size mismatch for the model, but dataset and dataloader worked fine
+    
+    # model.train()
+    # for batch in shoe_dataloader:
+        # pred = model(batch['images'], batch['targets'])
+        # print(pred)
+        # break
+    
 '''
 Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 Here I adopt Finetuning from a pretrained model for a quick start, will look at different backbone later
