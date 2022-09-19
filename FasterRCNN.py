@@ -50,8 +50,6 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import xml.etree.ElementTree as ET
 
-dataset = datasets.VOCDetection('/Users/huamuxin/Documents/fastai-test/Modified Data',image_set = 'train', year='2012', transform=False)
-
 class VocDataset(Dataset):
     def __init__(self, dataset_path, transform = None):
         super().__init__()
@@ -69,14 +67,19 @@ class VocDataset(Dataset):
         self.transform = transform
     
     def simple_parse_xml(self, target_name): # could be imporoved by reccursion
+        classes = {'logo' : 1, 'polygon' : 2, 'chevron' : 3, 'circle': 4, 'text':5,
+                   'quad' : 6, 'other' : 7, 'triangle' : 8, 'exclude' : 9, 'star' : 10, 
+                   'bowtie': 11, 'line' : 12, 'ribbon' :13}
         tree = ET.parse(target_name) # target name is the path of target file
         root = tree.getroot()
         labels = [] # list of all labels in current xml file
         boxes = [] # list of coordinates information in current xml file
-        for obj in find.findall('object'):
-            labels.append(obj.find('name').text)
+        for obj in root.findall('object'):
+            lab = obj.find('name').text
+            labels.append(int(classes[lab]))
             bndbox = obj.find('bndbox')
-            box = [bndbox.find('xmin').text, bndbox.find('ymin').text, bndbox.find('xmax').text, bndbox.find('ymax').text]
+            box = [float(bndbox.find('xmin').text), float(bndbox.find('ymin').text), 
+                  float(bndbox.find('xmax').text), float(bndbox.find('ymax').text)]
             boxes.append(box)
         
         return {'labels' : torch.as_tensor(labels, dtype = torch.int64),
@@ -102,44 +105,31 @@ class VocDataset(Dataset):
         
         return {'images' : images, 'targets' : targets}
 
-# Need to write a easy nn to test this Dataset class
-def testing():
-    transform = transforms.Compose(
+transform = transforms.Compose(
         [
         transforms.ToTensor(),
         transforms.Normalize((0, 0, 0), (255, 255, 255))
         ]
     )
-    
-    dataset_path = './Modified Data'
-    shoe_dataset = VocDataset(dataset_path = dataset_path, transform = transform)
-    shoe_dataloader = DataLoader(shoe_dataset, batch_size = 4, shuffle = True,
-                                 collate_fn = shoe_dataset.collate_fn_)
-    # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes), pretrained=True, pretrained_backbone = False)
-    # size mismatch for the model, but dataset and dataloader worked fine
-    
-    # model.train()
-    # for batch in shoe_dataloader:
-        # pred = model(batch['images'], batch['targets'])
-        # print(pred)
-        # break
-    
+dataset_path = './Modified Data'
+
+ds = VocDataset(dataset_path = dataset_path, transform = transform)
+dl = DataLoader(ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
+
+classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
+           'star', 'bowtie', 'line', 'ribbon']
+# num_classes = len(classes)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
+
+model.train()
+for batch in dl:
+    pred = model(batch['images'], batch['targets'])
+    print(pred)
+    break
+
 '''
 Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
-Here I adopt Finetuning from a pretrained model for a quick start, will look at different backbone later
+Will adopt Finetuning from a pretrained model for a quick start, will look at different backbone later
 '''
 
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-
-def get_object_detection_model(num_classes):
-  model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-  
-  num_classes = len(['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
-           'star', 'bowtie', 'line', 'ribbon'])
-  
-  in_features = model.roi_heads.box_predictor.cls_score.in_features
-  model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-  
-  return model
-  
