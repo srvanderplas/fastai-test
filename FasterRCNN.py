@@ -68,7 +68,7 @@ def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, 
     
     
 class VocDataset(Dataset):
-    def __init__(self, dataset_path, transform = None):
+    def __init__(self, dataset_path, transform = None, mode = 'train'):
         super().__init__()
         self.dataset_path = dataset_path
         self.image_path = os.path.join(dataset_path, 'JPEGImages')
@@ -76,11 +76,20 @@ class VocDataset(Dataset):
         assert os.path.exists(self.image_path), 'JPEGImages does not exist'
         assert os.path.exists(self.image_path), 'Annotations does not exist'
         
-        self.image_index_list = [s.split('.')[0] for s in os.listdir(self.image_path)]
-        self.target_index_list = [s.split('.')[0] for s in os.listdir(self.target_path)]
+        # self.image_index_list = [s.split('.')[0] for s in os.listdir(self.image_path)]
+        # self.target_index_list = [s.split('.')[0] for s in os.listdir(self.target_path)]
         # assert self.image_index_list == self.target_index_list, 'image names do not match xml names'
         
-        self.length = len(self.image_index_list)
+        assert mode in ['train', 'validate', 'test', 'train_validate']
+        self.index_list_path = os.path.join(self.dataset_path, mode+'.txt')
+        with open(self.index_list_path, 'r') as f:
+            self.index_list = [l[:-1] for l in f.readlines()]
+        
+        self.image_index_list = self.index_list
+        self.target_index_list = self.index_list
+
+        self.length = len(self.index_list)
+        # self.length = len(self.image_index_list)
         self.transform = transform
     
     def simple_parse_xml(self, target_name): # could be imporoved by reccursion
@@ -128,7 +137,9 @@ transform = transforms.Compose(
         transforms.Normalize((0, 0, 0), (255, 255, 255))
         ]
     )
+
 dataset_path = './Modified Data'
+data_split(dataset_path)
 
 ds = VocDataset(dataset_path = dataset_path, transform = transform)
 dl = DataLoader(ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
