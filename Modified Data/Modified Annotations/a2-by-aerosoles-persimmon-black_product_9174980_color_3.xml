@@ -1,0 +1,217 @@
+<annotation>
+	<filename>a2-by-aerosoles-persimmon-black_product_9174980_color_3.jpg</filename>
+	<folder>Shoes</folder>
+	<source>
+		<sourceImage>The MIT-CSAIL database of objects and scenes</sourceImage>
+		<sourceAnnotation>LabelMe Webtool</sourceAnnotation>
+	</source>
+	<object>
+		<name>triangle</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:36</date>
+		<id>1</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>934</xmin>
+			<ymin>871</ymin>
+			<xmax>1016</xmax>
+			<ymax>1263</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>triangle</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:46</date>
+		<id>2</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1067</xmin>
+			<ymin>721</ymin>
+			<xmax>1181</xmax>
+			<ymax>1280</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>triangle</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:51</date>
+		<id>3</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1216</xmin>
+			<ymin>713</ymin>
+			<xmax>1333</xmax>
+			<ymax>1250</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:55</date>
+		<id>4</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1389</xmin>
+			<ymin>736</ymin>
+			<xmax>1510</xmax>
+			<ymax>1193</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>triangle</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:59</date>
+		<id>5</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1581</xmin>
+			<ymin>791</ymin>
+			<xmax>1815</xmax>
+			<ymax>1109</ymax>
+		</bndbox>
+	</object>
+	<imagesize>
+		<nrows />
+		<ncols />
+	</imagesize>
+	<size>
+		<width>1920</width>
+		<height>1440</height>
+		<depth>3</depth>
+	</size>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:36</date>
+		<id>1</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>934</xmin>
+			<ymin>871</ymin>
+			<xmax>1016</xmax>
+			<ymax>1263</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:46</date>
+		<id>2</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1067</xmin>
+			<ymin>721</ymin>
+			<xmax>1181</xmax>
+			<ymax>1280</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:51</date>
+		<id>3</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1216</xmin>
+			<ymin>713</ymin>
+			<xmax>1333</xmax>
+			<ymax>1250</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>triangle</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:55</date>
+		<id>4</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1389</xmin>
+			<ymin>736</ymin>
+			<xmax>1510</xmax>
+			<ymax>1193</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>24-Jan-2019 23:38:59</date>
+		<id>5</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>1581</xmin>
+			<ymin>791</ymin>
+			<xmax>1815</xmax>
+			<ymax>1109</ymax>
+		</bndbox>
+	</object>
+</annotation>

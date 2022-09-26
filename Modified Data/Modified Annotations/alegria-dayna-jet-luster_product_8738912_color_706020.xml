@@ -1,0 +1,38 @@
+<annotation>
+	<filename>alegria-dayna-jet-luster_product_8738912_color_706020.jpg</filename>
+	<folder>../Images</folder>
+	<source>
+		<sourceImage>The MIT-CSAIL database of objects and scenes</sourceImage>
+		<sourceAnnotation>LabelMe Webtool</sourceAnnotation>
+	</source>
+	<object>
+		<name>other</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes>texture_hatching</attributes>
+		<parts>
+			<hasparts>1</hasparts>
+			<ispartof />
+		</parts>
+		<date>15-Jun-2018 18:03:16</date>
+		<id>0</id>
+		<bndbox><xmin>1041</xmin><ymin>112</ymin><xmax>1836</xmax><ymax>699</ymax></bndbox></object>
+	<object>
+		<name>quad</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes>rounded, texture_hatching</attributes>
+		<parts>
+			<hasparts>3</hasparts>
+			<ispartof />
+		</parts>
+		<date>15-Jun-2018 18:04:12</date>
+		<id>2</id>
+		<bndbox><xmin>99</xmin><ymin>235</ymin><xmax>569</xmax><ymax>584</ymax></bndbox></object>
+	<imagesize>
+		<nrows />
+		<ncols />
+	</imagesize>
+<size><width>1891</width><height>785</height><depth>3</depth></size></annotation>
