@@ -161,7 +161,7 @@ transform = transforms.Compose(
     )
 
 dataset_path = './Modified Data'
-data_split(dataset_path)
+# data_split(dataset_path) # Already completed data splitting
 
 --------
 '''
@@ -192,11 +192,11 @@ itr = 1
 
 loss_hist = Averager()
 
-t_ds = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'train')
-t_dl = DataLoader(t_ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
+# t_ds = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'train') # for testing
+# t_dl = DataLoader(t_ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_) # for testing
 
 for epoch in range(num_epochs):
-    for batch in t_dl:
+    for batch in train_dl:
         
         loss_hist.reset()
         # images = list(image.to(device) for image in images)
@@ -230,7 +230,7 @@ for epoch in range(num_epochs):
         losses.backward()
         optimizer.step()
 
-        if itr % 1 == 0: # 50
+        if itr % 50 == 0: # 50
             print(f"Iteration #{itr} loss: {loss_value}")
 
         itr += 1
@@ -278,77 +278,77 @@ for epoch in range(num_epochs):
     print(f"Epoch #{epoch} loss: {loss_hist.value}")
 ------
 
+# # 
+# # ds = VocDataset(dataset_path = dataset_path, transform = transform)
+# # dl = DataLoader(ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
+# # 
+# # classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
+# #            'star', 'bowtie', 'line', 'ribbon']
+# # num_classes = len(classes)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
 # 
-# ds = VocDataset(dataset_path = dataset_path, transform = transform)
-# dl = DataLoader(ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
-# 
-# classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
-#            'star', 'bowtie', 'line', 'ribbon']
-# num_classes = len(classes)
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False)
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
-
-model.train()
-for batch in t_dl:  # test the S
-    pred = model(batch['images'], batch['targets'])
-    print(pred)
-    break
-
-# {'loss_classifier': tensor(6.4603, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1781, grad_fn=<DivBackward0>),
-# 'loss_objectness': tensor(1.5828, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.8501, 
-# grad_fn=<DivBackward0>)}
-
------
-# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-# 
-# # replace the classifier with a new one, that has
-# # num_classes which is user-defined
-# num_classes = len(classes) + 1
-# # get number of input features for the classifier
-# in_features = model.roi_heads.box_predictor.cls_score.in_features
-# # replace the pre-trained head with a new one
-# model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-# 
-# import transforms as T
-# 
-# def get_transform(train):
-#     transforms = []
-#     transforms.append(T.PILToTensor())
-#     transforms.append(T.ConvertImageDtype(torch.float))
-#     if train:
-#         transforms.append(T.RandomHorizontalFlip(0.5))
-#     return T.Compose(transforms)
-#   
-# device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-# model.to(device)
-# params = [p for p in model.parameters() if p.requires_grad]
-# optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-# 
-# # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-# 
-# 
-# for batch in dl:
-#     im = batch['images']
-#     targ = batch['targets']
-#     images = list(image.to(device) for image in im)
-#     targets = [{k: v.to(device) for k, v in t.items()} for t in targ]
-#     
-#     loss_dict = model(images, targets)
+# model.train()
+# for batch in t_dl:  # test the S
+#     pred = model(batch['images'], batch['targets'])
+#     print(pred)
 #     break
-# # {'loss_classifier': tensor(2.5329, grad_fn=<NllLossBackward0>),
-# # classifier loss is the loss of prediction of object classes in bounding boxes.
 # 
-# # 'loss_box_reg': tensor(0.0386, grad_fn=<DivBackward0>),
-# # Localisation loss in the ROI head. Measures the loss for box localisation (predicted location vs true location).
+# # {'loss_classifier': tensor(6.4603, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1781, grad_fn=<DivBackward0>),
+# # 'loss_objectness': tensor(1.5828, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.8501, 
+# # grad_fn=<DivBackward0>)}
 # 
-# # 'loss_objectness': tensor(0.4805, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>),
-# # This is also when we are extracting the region proposals whether the object is present in the anchorbox or not.
+# -----
+# # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+# # 
+# # # replace the classifier with a new one, that has
+# # # num_classes which is user-defined
+# # num_classes = len(classes) + 1
+# # # get number of input features for the classifier
+# # in_features = model.roi_heads.box_predictor.cls_score.in_features
+# # # replace the pre-trained head with a new one
+# # model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+# # 
+# # import transforms as T
+# # 
+# # def get_transform(train):
+# #     transforms = []
+# #     transforms.append(T.PILToTensor())
+# #     transforms.append(T.ConvertImageDtype(torch.float))
+# #     if train:
+# #         transforms.append(T.RandomHorizontalFlip(0.5))
+# #     return T.Compose(transforms)
+# #   
+# # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+# # model.to(device)
+# # params = [p for p in model.parameters() if p.requires_grad]
+# # optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+# # 
+# # # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+# # 
+# # 
+# # for batch in dl:
+# #     im = batch['images']
+# #     targ = batch['targets']
+# #     images = list(image.to(device) for image in im)
+# #     targets = [{k: v.to(device) for k, v in t.items()} for t in targ]
+# #     
+# #     loss_dict = model(images, targets)
+# #     break
+# # # {'loss_classifier': tensor(2.5329, grad_fn=<NllLossBackward0>),
+# # # classifier loss is the loss of prediction of object classes in bounding boxes.
+# # 
+# # # 'loss_box_reg': tensor(0.0386, grad_fn=<DivBackward0>),
+# # # Localisation loss in the ROI head. Measures the loss for box localisation (predicted location vs true location).
+# # 
+# # # 'loss_objectness': tensor(0.4805, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>),
+# # # This is also when we are extracting the region proposals whether the object is present in the anchorbox or not.
+# # 
+# # # 'loss_rpn_box_reg': tensor(0.0169, grad_fn=<DivBackward0>)}
+# # 
+# # num_epochs = 2
+# # 
+# # itr = 1
 # 
-# # 'loss_rpn_box_reg': tensor(0.0169, grad_fn=<DivBackward0>)}
-# 
-# num_epochs = 2
-# 
-# itr = 1
-
 
 
