@@ -174,10 +174,20 @@ valid_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode 
 
 classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
            'star', 'bowtie', 'line', 'ribbon']
-           
 
-train_dl = DataLoader(train_ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
-valid_dl = DataLoader(valid_ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
+           
+# replace the classifier with a new one, that has
+# num_classes which is user-defined
+# num_classes = len(classes) + 1
+# get number of input features for the classifier
+in_features = model.roi_heads.box_predictor.cls_score.in_features
+# replace the pre-trained head with a new one
+model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+train_dl = DataLoader(train_ds, batch_size = 4, shuffle = True, collate_fn = train_ds.collate_fn_)
+valid_dl = DataLoader(valid_ds, batch_size = 4, shuffle = True, collate_fn = valid_ds.collate_fn_)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
@@ -210,7 +220,7 @@ for epoch in range(num_epochs):
         loss_dict = model(images, targets)
       
         # break
-        print('loss_dict: ', loss_dict)
+        # print('loss_dict: ', loss_dict)
         # {'loss_classifier': tensor(6.3938, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1693, grad_fn=<DivBackward0>), 
         # 'loss_objectness': tensor(1.6913, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 
         # 'loss_rpn_box_reg': tensor(0.9039, grad_fn=<DivBackward0>)}
@@ -299,16 +309,8 @@ for epoch in range(num_epochs):
 # # grad_fn=<DivBackward0>)}
 # 
 # -----
-# # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-# # 
-# # # replace the classifier with a new one, that has
-# # # num_classes which is user-defined
-# # num_classes = len(classes) + 1
-# # # get number of input features for the classifier
-# # in_features = model.roi_heads.box_predictor.cls_score.in_features
-# # # replace the pre-trained head with a new one
-# # model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-# # 
+
+
 # # import transforms as T
 # # 
 # # def get_transform(train):
