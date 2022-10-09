@@ -3,7 +3,7 @@ import glob
 
 no_obj_list = []
 
-paths = get_files('/Users/huamuxin/Documents/fastai-test/Original Data/Annotations', extensions=['.xml']) # get the file paths
+paths = get_files('/Original Data/Annotations', extensions=['.xml']) # get the file paths
 
 # file_path = '/Users/huamuxin/Documents/fastai-test/Modified Data/Modified Annotations/kizik-new-york-coffee-gum_product_9170616_color_8575.xml'
 # file_path = '/Users/huamuxin/Documents/fastai-test/Modified Data/Modified Annotations/kizik-new-york-castle-grey_product_9170616_color_112673.xml'
