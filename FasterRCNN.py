@@ -4,29 +4,18 @@ import matplotlib.pyplot as plt
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import pandas as pd
-import numpy as np
-import cv2
 import os
 import re
 from PIL import Image
-import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
 import torch
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection import FasterRCNN
-from torchvision.models.detection.rpn import AnchorGenerator
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.sampler import SequentialSampler
-from matplotlib import pyplot as plt
 import torchvision.datasets as datasets
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import xml.etree.ElementTree as ET
-
-
 import random
-import os
     
 def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, test_percent = 0.1):
     target_path = os.path.join(dataset_path, 'Modified Annotations')
@@ -162,8 +151,7 @@ transform = transforms.Compose(
 
 dataset_path = './Modified Data'
 # data_split(dataset_path) # Already completed data splitting
-
---------
+#--------
 '''
 Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 Kaggle example https://www.kaggle.com/code/pestipeti/pytorch-starter-fasterrcnn-train
@@ -176,11 +164,11 @@ classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'tri
            'star', 'bowtie', 'line', 'ribbon']
 
 # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False) #deprecated
            
 # replace the classifier with a new one, that has
 # num_classes which is user-defined
-# num_classes = len(classes) + 1
+num_classes = len(classes) + 1
 # get number of input features for the classifier
 in_features = model.roi_heads.box_predictor.cls_score.in_features
 # replace the pre-trained head with a new one
@@ -205,153 +193,65 @@ loss_hist = Averager()
 # t_ds = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'train') # for testing
 # t_dl = DataLoader(t_ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_) # for testing
 
+''' This training code would cutoff the last letter of the last file name
+    so remember to add one space at the end of the txt file
+'''
+
 for epoch in range(num_epochs):
     loss_hist.reset()
     
     for batch in train_dl:
+        try:
+            # images = list(image.to(device) for image in images)
+            # targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            
+            im = batch['images']
+            targ = batch['targets']
+            images = list(image.to(device) for image in im)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targ]
         
-        # images = list(image.to(device) for image in images)
-        # targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        
-        im = batch['images']
-        targ = batch['targets']
-        images = list(image.to(device) for image in im)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targ]
+            loss_dict = model(images, targets)
+          
+            # break
+            # print('loss_dict: ', loss_dict)
     
-        loss_dict = model(images, targets)
-      
-        # break
-        # print('loss_dict: ', loss_dict)
-        # {'loss_classifier': tensor(6.3938, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1693, grad_fn=<DivBackward0>), 
-        # 'loss_objectness': tensor(1.6913, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 
-        # 'loss_rpn_box_reg': tensor(0.9039, grad_fn=<DivBackward0>)}
-
-        losses = sum(loss for loss in loss_dict.values())
-        loss_value = losses.item()
-
-        print('losses: ', losses)
-        # tensor(9.1583, grad_fn=<AddBackward0>)
-
-        print('loss_value: ', loss_value)
-        # 9.158288955688477
-
-        loss_hist.send(loss_value)
-
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-
-        if itr % 50 == 0: # 50
-            print(f"Iteration #{itr} loss: {loss_value}")
-
-        itr += 1
+            losses = sum(loss for loss in loss_dict.values())
+            loss_value = losses.item()
+    
+            print('losses: ', losses)
+    
+            print('loss_value: ', loss_value)
+    
+            loss_hist.send(loss_value)
+    
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
+    
+            if itr % 5 == 0: # 50
+                print(f"Iteration #{itr} loss: {loss_value}")
+    
+            itr += 1
+            print('--------------', itr)
+        except Exception as e:
+            pass
         
-# loss_dict:  {'loss_classifier': tensor(6.3938, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1693, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6913, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.9039, grad_fn=<DivBackward0>)}        
-# losses:  tensor(9.1583, grad_fn=<AddBackward0>)        
-# loss_value:  9.158288955688477        
-# Iteration #2 loss: 9.158288955688477        
-# loss_dict:  {'loss_classifier': tensor(6.2422, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.0992, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6525, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.6531, grad_fn=<DivBackward0>)}
-# losses:  tensor(8.6470, grad_fn=<AddBackward0>)
-# loss_value:  8.646978378295898
-# Iteration #3 loss: 8.646978378295898
-# loss_dict:  {'loss_classifier': tensor(6.3935, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.2516, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.7266, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.7815, grad_fn=<DivBackward0>)}
-# losses:  tensor(9.1533, grad_fn=<AddBackward0>)
-# loss_value:  9.153275489807129
-# Iteration #4 loss: 9.153275489807129
-# loss_dict:  {'loss_classifier': tensor(6.0925, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.2861, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.7179, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.9329, grad_fn=<DivBackward0>)}
-# losses:  tensor(9.0295, grad_fn=<AddBackward0>)
-# loss_value:  9.029480934143066
-# Iteration #5 loss: 9.029480934143066        
-# loss_dict:  {'loss_classifier': tensor(5.7527, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.3174, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.8469, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.6728, grad_fn=<DivBackward0>)}
-# losses:  tensor(8.5898, grad_fn=<AddBackward0>)
-# loss_value:  8.589811325073242
-# Iteration #6 loss: 8.589811325073242   
-# loss_dict:  {'loss_classifier': tensor(6.3617, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.2610, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6953, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.9091, grad_fn=<DivBackward0>)}
-# losses:  tensor(9.2271, grad_fn=<AddBackward0>)
-# loss_value:  9.227115631103516
-# Iteration #7 loss: 9.227115631103516        
-# loss_dict:  {'loss_classifier': tensor(6.3778, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.2174, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6300, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.9175, grad_fn=<DivBackward0>)}
-# losses:  tensor(9.1427, grad_fn=<AddBackward0>)
-# loss_value:  9.142691612243652
-# Iteration #8 loss: 9.142691612243652        
-# loss_dict:  {'loss_classifier': tensor(6.3670, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1742, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6477, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.4726, grad_fn=<DivBackward0>)}
-# losses:  tensor(8.6615, grad_fn=<AddBackward0>)
-# loss_value:  8.66147232055664
-# Iteration #9 loss: 8.66147232055664
-# loss_dict:  {'loss_classifier': tensor(6.2625, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.3150, grad_fn=<DivBackward0>), 'loss_objectness': tensor(1.6337, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.7637, grad_fn=<DivBackward0>)}
-# losses:  tensor(8.9750, grad_fn=<AddBackward0>)
-# loss_value:  8.974950790405273
-# Iteration #10 loss: 8.974950790405273
+        # finally:
 
     # update the learning rate
     if lr_scheduler is not None:
         lr_scheduler.step()
     print(f"Epoch #{epoch} loss: {loss_hist.value}")
-------
 
-# # 
-# # ds = VocDataset(dataset_path = dataset_path, transform = transform)
-# # dl = DataLoader(ds, batch_size = 4, shuffle = True, collate_fn = ds.collate_fn_)
-# # 
-# # classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
-# #            'star', 'bowtie', 'line', 'ribbon']
-# # num_classes = len(classes)
-# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False)
-# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False)
-# 
-# model.train()
-# for batch in t_dl:  # test the S
-#     pred = model(batch['images'], batch['targets'])
-#     print(pred)
-#     break
-# 
-# # {'loss_classifier': tensor(6.4603, grad_fn=<NllLossBackward0>), 'loss_box_reg': tensor(0.1781, grad_fn=<DivBackward0>),
-# # 'loss_objectness': tensor(1.5828, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>), 'loss_rpn_box_reg': tensor(0.8501, 
-# # grad_fn=<DivBackward0>)}
-# 
-# -----
+next_valid_dl = next(iter(valid_dl))
+im = next_valid_dl['images']
+targ = next_valid_dl['targets']
 
+boxes = targets[1]['boxes'].cpu().numpy().astype(np.int32)
+sample = im[1].permute(1,2,0).cpu().numpy()
 
-# # import transforms as T
-# # 
-# # def get_transform(train):
-# #     transforms = []
-# #     transforms.append(T.PILToTensor())
-# #     transforms.append(T.ConvertImageDtype(torch.float))
-# #     if train:
-# #         transforms.append(T.RandomHorizontalFlip(0.5))
-# #     return T.Compose(transforms)
-# #   
-# # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-# # model.to(device)
-# # params = [p for p in model.parameters() if p.requires_grad]
-# # optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-# # 
-# # # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-# # 
-# # 
-# # for batch in dl:
-# #     im = batch['images']
-# #     targ = batch['targets']
-# #     images = list(image.to(device) for image in im)
-# #     targets = [{k: v.to(device) for k, v in t.items()} for t in targ]
-# #     
-# #     loss_dict = model(images, targets)
-# #     break
-# # # {'loss_classifier': tensor(2.5329, grad_fn=<NllLossBackward0>),
-# # # classifier loss is the loss of prediction of object classes in bounding boxes.
-# # 
-# # # 'loss_box_reg': tensor(0.0386, grad_fn=<DivBackward0>),
-# # # Localisation loss in the ROI head. Measures the loss for box localisation (predicted location vs true location).
-# # 
-# # # 'loss_objectness': tensor(0.4805, grad_fn=<BinaryCrossEntropyWithLogitsBackward0>),
-# # # This is also when we are extracting the region proposals whether the object is present in the anchorbox or not.
-# # 
-# # # 'loss_rpn_box_reg': tensor(0.0169, grad_fn=<DivBackward0>)}
-# # 
-# # num_epochs = 2
-# # 
-# # itr = 1
-# 
+model.eval()
+cpu_device = torch.device("cpu")
 
-
+outputs = model(im)
+outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
