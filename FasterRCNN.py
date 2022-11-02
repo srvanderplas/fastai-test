@@ -163,8 +163,8 @@ valid_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode 
 classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
            'star', 'bowtie', 'line', 'ribbon']
 
-# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False) #deprecated
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False) #deprecated
            
 # replace the classifier with a new one, that has
 # num_classes which is user-defined
@@ -244,14 +244,32 @@ for epoch in range(num_epochs):
     print(f"Epoch #{epoch} loss: {loss_hist.value}")
 
 next_valid_dl = next(iter(valid_dl))
-im = next_valid_dl['images']
-targ = next_valid_dl['targets']
 
-boxes = targets[1]['boxes'].cpu().numpy().astype(np.int32)
-sample = im[1].permute(1,2,0).cpu().numpy()
+im = next_valid_dl['images'] # image is saved in next_valid_dl, need this to plot
+# targ = next_valid_dl['targets'] # 4 images
 
 model.eval()
 cpu_device = torch.device("cpu")
 
 outputs = model(im)
-outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
+
+# label_predict0 = outputs[0]['labels']
+box_predict0 = outputs[1]['boxes'] # bboxes
+boxes = torch.from_numpy(box_predict0) # tensor to numpy
+boxes = boxes.cpu().numpy().astype(np.int32) # need int to plot
+
+sample = im[1].permute(1,2,0).cpu().numpy() # image will be plotted
+
+fig, ax = plt.subplots(1, 1, figsize=(16, 8))
+
+m = sample.copy() # Need to create a copy to make the rectangle function work
+
+for box in boxes:
+    cv2.rectangle(m,
+                  (box[0], box[1]),
+                  (box[2], box[3]),
+                  (220, 0, 0), 3)
+                  
+ax.set_axis_off()
+ax.imshow(sample)
