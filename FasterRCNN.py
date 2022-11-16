@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-import pandas as pd
+# import pandas as pd
 import os
 import re
 from PIL import Image
@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 import xml.etree.ElementTree as ET
 import random
     
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, test_percent = 0.1):
     target_path = os.path.join(dataset_path, 'Modified Annotations')
     all_xml_file = os.listdir((target_path))
@@ -57,7 +58,7 @@ def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, 
     
     
 class VocDataset(Dataset):
-    def __init__(self, dataset_path, transform = None, mode = 'train'):
+    def __init__(self, dataset_path, transform = None, mode = 'train_01'):
         super().__init__()
         self.dataset_path = dataset_path
         self.image_path = os.path.join(dataset_path, 'JPEGImages')
@@ -69,7 +70,7 @@ class VocDataset(Dataset):
         # self.target_index_list = [s.split('.')[0] for s in os.listdir(self.target_path)]
         # assert self.image_index_list == self.target_index_list, 'image names do not match xml names'
         
-        assert mode in ['train', 'validate', 'test', 'train_validate']
+        # assert mode in ['train', 'validate', 'test', 'train_validate']
         self.index_list_path = os.path.join(self.dataset_path, mode+'.txt')
         with open(self.index_list_path, 'r') as f:
             self.index_list = [l[:-1] for l in f.readlines()]
@@ -145,7 +146,7 @@ class Averager:
 transform = transforms.Compose(
         [
         transforms.ToTensor(),
-        transforms.Normalize((0, 0, 0), (255, 255, 255))
+        # transforms.Normalize((0, 0, 0), (255, 255, 255))
         ]
     )
 
@@ -157,7 +158,8 @@ Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.h
 Kaggle example https://www.kaggle.com/code/pestipeti/pytorch-starter-fasterrcnn-train
 '''
 
-train_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'train')
+train_ds  = VocDataset(dataset_path = dataset_path, transform = transform)
+# , mode = 'train')
 valid_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'validate')
 
 classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
@@ -243,23 +245,84 @@ for epoch in range(num_epochs):
         lr_scheduler.step()
     print(f"Epoch #{epoch} loss: {loss_hist.value}")
 
+
+# Try to plot with subplots here, failed though
+'''    
+a = next(iter(train_dl))
+
+tensor_img = a['images'][0]
+tensor_boxes = a['targets'][0]['boxes']
+np_boxes = tensor_boxes.cpu().detach().numpy().astype(np.int32)
+
+img_for_plot = tensor_img.permute(1,2,0).cpu().numpy()
+
+fig, ax = plt.subplots(2, 1, figsize=(16, 8))
+
+img_copy = img_for_plot.copy()
+plt.subplot(2,1,1)
+
+for box in np_boxes:
+    cv2.rectangle(img_copy,
+                  (box[0], box[1]),
+                  (box[2], box[3]),
+                  (220, 0, 0), 3)
+
+ax[0].axis('off')                  
+# ax.set_axis_off()
+# ax.imshow(img_copy)
+# plt.show()
+# fig, ax = plt.subplots(2, 1, 2 figsize=(16, 8))
+
+xpoint = np.array([0,6])
+ypoint = np.array([0,100])
+plt.subplot(2,1,2)
+plt.plot(xpoint, ypoint)
+
+plt.show()
+'''
+
+
+print_batch = next(iter(train_dl))
+def plot_train(batch, index=0):
+    '''print the default first image of the bacth, default batch size=4'''
+    tensor_img = batch['images'][index]
+    img_for_plot = tensor_img.permute(1,2,0).cpu().numpy()
+    
+    tensor_boxes = batch['targets'][index]['boxes']
+    np_boxes = tensor_boxes.cpu().detach().numpy().astype(np.int32)
+    
+    fig, ax = plt.subplots(1, 1, figsize=(16, 8))
+    img_copy = img_for_plot.copy()
+    for box in np_boxes:
+        cv2.rectangle(img_copy,
+                      (box[0], box[1]),
+                      (box[2], box[3]),
+                      (220, 0, 0), 3)
+                  
+    ax.set_axis_off()
+    ax.imshow(img_copy)
+    plt.show()
+    plt.close()
+
+
 next_valid_dl = next(iter(valid_dl))
 
-im = next_valid_dl['images'] # image is saved in next_valid_dl, need this to plot
+im2 = next_valid_dl['images'] # image is saved in next_valid_dl, need this to plot
 # targ = next_valid_dl['targets'] # 4 images
 
 model.eval()
 cpu_device = torch.device("cpu")
 
-outputs = model(im)
+outputs = model(im2)
 outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
 
 # label_predict0 = outputs[0]['labels']
-box_predict0 = outputs[1]['boxes'] # bboxes
-boxes = torch.from_numpy(box_predict0) # tensor to numpy
-boxes = boxes.cpu().numpy().astype(np.int32) # need int to plot
+box_predict0 = outputs[0]['boxes'] # bboxes
+# boxes = torch.from_numpy(box_predict0) # tensor to numpy
+boxes = box_predict0.cpu().detach().numpy()
+boxes = boxes.astype(np.int32) # need int to plot
 
-sample = im[1].permute(1,2,0).cpu().numpy() # image will be plotted
+sample = im2[0].permute(1,2,0).cpu().numpy() # image will be plotted
 
 fig, ax = plt.subplots(1, 1, figsize=(16, 8))
 
@@ -272,4 +335,5 @@ for box in boxes:
                   (220, 0, 0), 3)
                   
 ax.set_axis_off()
-ax.imshow(sample)
+ax.imshow(m)
+plt.show()
