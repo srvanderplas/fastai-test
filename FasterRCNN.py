@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 import random
     
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
 def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, test_percent = 0.1):
     target_path = os.path.join(dataset_path, 'Modified Annotations')
     all_xml_file = os.listdir((target_path))
@@ -58,7 +59,7 @@ def data_split(dataset_path, train_validate_percent = 0.9, train_percent = 0.8, 
     
     
 class VocDataset(Dataset):
-    def __init__(self, dataset_path, transform = None, mode = 'train_01'):
+    def __init__(self, dataset_path, transform = None, mode = 'train'):
         super().__init__()
         self.dataset_path = dataset_path
         self.image_path = os.path.join(dataset_path, 'JPEGImages')
@@ -167,6 +168,14 @@ classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'tri
 
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(num_classes=len(classes)+1, pretrained=False, pretrained_backbone = False) #deprecated
+
+'''
+Deprecated warning
+/home/muxin/.local/share/r-miniconda/envs/r-reticulate/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and will be removed in 0.15, please use 'weights' instead.
+  warnings.warn(
+/home/muxin/.local/share/r-miniconda/envs/r-reticulate/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and will be removed in 0.15. The current behavior is equivalent to passing `weights=FasterRCNN_ResNet50_FPN_Weights.COCO_V1`. You can also use `weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)'''
+
            
 # replace the classifier with a new one, that has
 # num_classes which is user-defined
@@ -283,7 +292,7 @@ plt.show()
 
 
 print_batch = next(iter(train_dl))
-def plot_train(batch, index=0):
+def plot_dl(batch, index=0):
     '''print the default first image of the bacth, default batch size=4'''
     tensor_img = batch['images'][index]
     img_for_plot = tensor_img.permute(1,2,0).cpu().numpy()
@@ -305,35 +314,57 @@ def plot_train(batch, index=0):
     plt.close()
 
 
+def plot_prediction(batch, predict_outputs=False, index=0, threshold=0.2):
+    # im_plot = next_valid_dl['images'][index] # image is saved in next_valid_dl, need this to plot
+    im_for_predict = next_valid_dl['images']
+    # targ = next_valid_dl['targets'] # 4 images
+
+    model.eval()
+    cpu_device = torch.device("cpu")
+    
+    if predict_outputs == False:
+        outputs = model(im_for_predict)
+        outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
+    
+    else:
+        outputs = predict_outputs
+        
+    # label_predict0 = outputs[0]['labels']
+    box_predict0 = outputs[0]['boxes'] # bboxes
+    # boxes = torch.from_numpy(box_predict0) # tensor to numpy
+    boxes = box_predict0.cpu().detach().numpy()
+    boxes = boxes.astype(np.int32) # need int to plot
+    
+    sample = im_for_predict[index].permute(1,2,0).cpu().numpy() # the image to be plotted
+    
+    fig, ax = plt.subplots(1, 1, figsize=(16, 8))
+    
+    m = sample.copy() # Need to create a copy of the image to make the rectangle function work
+    
+    p_boxes = boxes[outputs[index]['scores']>threshold]
+
+    for box in p_boxes:
+        cv2.rectangle(m,
+                      (box[0], box[1]),
+                      (box[2], box[3]),
+                      (220, 0, 0), 3)
+                      
+    ax.set_axis_off()
+    ax.imshow(m)
+    plt.show()
+    plt.close()
+
 next_valid_dl = next(iter(valid_dl))
 
-im2 = next_valid_dl['images'] # image is saved in next_valid_dl, need this to plot
-# targ = next_valid_dl['targets'] # 4 images
-
-model.eval()
-cpu_device = torch.device("cpu")
-
-outputs = model(im2)
+outputs = model(im_for_predict)
 outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
 
-# label_predict0 = outputs[0]['labels']
-box_predict0 = outputs[0]['boxes'] # bboxes
-# boxes = torch.from_numpy(box_predict0) # tensor to numpy
-boxes = box_predict0.cpu().detach().numpy()
-boxes = boxes.astype(np.int32) # need int to plot
+plot_prediction(next_valid_dl, predict_outputs=outputs, index=1, threshold=0.27)
 
-sample = im2[0].permute(1,2,0).cpu().numpy() # image will be plotted
+'''
+hyperparameter, threshold
+maybe trim the image?
+Transform
+maybe add image names?
 
-fig, ax = plt.subplots(1, 1, figsize=(16, 8))
-
-m = sample.copy() # Need to create a copy to make the rectangle function work
-
-for box in boxes:
-    cv2.rectangle(m,
-                  (box[0], box[1]),
-                  (box[2], box[3]),
-                  (220, 0, 0), 3)
-                  
-ax.set_axis_off()
-ax.imshow(m)
-plt.show()
+'''
