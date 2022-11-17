@@ -356,6 +356,9 @@ def plot_prediction(batch, predict_outputs=False, index=0, threshold=0.2):
 
 next_valid_dl = next(iter(valid_dl))
 
+im_for_predict = next_valid_dl['images']
+model.eval()
+    cpu_device = torch.device("cpu")
 outputs = model(im_for_predict)
 outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
 
@@ -366,5 +369,10 @@ hyperparameter, threshold
 maybe trim the image?
 Transform
 maybe add image names?
-
 '''
+
+torch.save(model.state_dict(), 'no_transform_model1.pt') # Trained model parameter
+
+# OR
+torch.save(model, 'all_model1.pt') # whole model
+new_m = torch.load('all_model1.pt')
