@@ -16,6 +16,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import xml.etree.ElementTree as ET
 import random
+import json
     
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
@@ -159,8 +160,7 @@ Pytorch Doc at https://pytorch.org/tutorials/intermediate/torchvision_tutorial.h
 Kaggle example https://www.kaggle.com/code/pestipeti/pytorch-starter-fasterrcnn-train
 '''
 
-train_ds  = VocDataset(dataset_path = dataset_path, transform = transform)
-# , mode = 'train')
+train_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'train')
 valid_ds  = VocDataset(dataset_path = dataset_path, transform = transform, mode = 'validate')
 
 classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 'triangle', 'exclude',
@@ -180,13 +180,15 @@ Deprecated warning
 # replace the classifier with a new one, that has
 # num_classes which is user-defined
 num_classes = len(classes) + 1
+
 # get number of input features for the classifier
 in_features = model.roi_heads.box_predictor.cls_score.in_features
+
 # replace the pre-trained head with a new one
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
 train_dl = DataLoader(train_ds, batch_size = 4, shuffle = True, collate_fn = train_ds.collate_fn_)
-valid_dl = DataLoader(valid_ds, batch_size = 4, shuffle = True, collate_fn = valid_ds.collate_fn_)
+valid_dl = DataLoader(valid_ds, batch_size = 1, shuffle = True, collate_fn = valid_ds.collate_fn_)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
@@ -358,11 +360,12 @@ next_valid_dl = next(iter(valid_dl))
 
 im_for_predict = next_valid_dl['images']
 model.eval()
-    cpu_device = torch.device("cpu")
+cpu_device = torch.device("cpu")
 outputs = model(im_for_predict)
 outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs] # Predicted 
 
-plot_prediction(next_valid_dl, predict_outputs=outputs, index=1, threshold=0.27)
+plot_prediction(next_valid_dl, predict_outputs=outputs, index=0, threshold=0.27) 
+# batch=1, otherwise wired error 'IndexError: boolean index did not match indexed array along dimension 0; dimension is 45 but corresponding boolean dimension is 36'
 
 '''
 hyperparameter, threshold
@@ -371,8 +374,29 @@ Transform
 maybe add image names?
 '''
 
-torch.save(model.state_dict(), 'no_transform_model1.pt') # Trained model parameter
+torch.save(model.state_dict(), 'model2.pt') # model1: no transform, parameter, trained with train.txt, parameter
 
 # OR
-torch.save(model, 'all_model1.pt') # whole model
-new_m = torch.load('all_model1.pt')
+torch.save(model, 'all_model2.pt') # whole model1
+new_m = torch.load('all_model2.pt')
+
+
+i=0
+for i in range(len(valid_dl)):
+    next_valid_dl_ = next(iter(valid_dl))
+
+    im_for_predict_ = next_valid_dl_['images']
+    new_m.eval()
+    cpu_device = torch.device("cpu")
+    outputs_ = new_m(im_for_predict_)
+    outputs_ = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs_]
+    
+    origin_name = 'Modified Data/Valid_pred/origin' + str(i) + '.pt'
+    pred_name = 'Modified Data/Valid_pred/pred' + str(i) + '.pt'
+    torch.save(next_valid_dl_, origin_name)
+    torch.save(outputs_, pred_name)
+    
+    i += 1
+    
+    
+    
