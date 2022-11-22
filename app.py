@@ -24,25 +24,30 @@ app_ui = ui.page_fluid(
     # ui.input_checkbox("line", "line"),
     # ui.input_checkbox("ribbon", "ribbon"),
     ui.input_slider("n_box", "Number of Boxes", value=1, min=0, max=20),
-    # ui.input_checkbox("randomness", "Random generate"),
+    ui.input_checkbox("randomness", "Random generate"),
+    ui.input_slider("idx", "Number between 0 and 897", value=23, min=0, max=897),
+    
     ui.output_plot('origin'),
+    ui.output_text("input_index")
 )
 
 def server(input, output, session):
     @output
+    @render.text
+    def input_index():
+        return f"The value of randomess is {input.randomness()}"
+    
+    @output
     @render.plot
     def origin():
-        # if input.randomness:
-        #     x_rand = 100 + 15 * np.random.randn(437)
-        #     fig, ax = plt.subplots()
-        #     ax.hist(x_rand, int(input.n_box()))
-        idx = random.randint(0, 897)
+        if input.randomness() == True:
+            idx = str(random.randint(0, 897))
+        if input.randomness() == False:
+            idx = input.idx()
+
         origin_name = 'Modified Data/Valid_pred/origin' + str(idx) + '.pt'
-        # else:
-            # origin_name = 'Modified Data/Valid_pred/origin' + str(23) + '.pt'
         batch = torch.load(origin_name)
 
-        model = torch.load('stat_all_model2.pt')
         tensor_img = batch['images'][0]
         img = tensor_img.permute(1,2,0).cpu().numpy()
 
@@ -59,10 +64,10 @@ def server(input, output, session):
 
         ax.set_axis_off()
         ax.imshow(img_copy)
-        plt.show()
+        # plt.show()
         plt.close()
         return fig
-        
+
 
 app = App(app_ui, server)
 
