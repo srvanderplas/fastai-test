@@ -18,7 +18,7 @@
   * `Number between 0 and 896` specifies the index of the image to display from all 897 images we have
   *  Three tabs
       - `Confusion Matrix` shows the heatmap of confusion matrix
-      - `Table` lists all the 13 classes we defined and the number of classes in the each of the plots. The last row `Total` is the number of each labels summed up for both origin and prediction. The predict `Total` is the `number of boxes` speficied above.
+      - `Table` lists all the 13 classes we defined and the number of classes in the each of the plots. The last row `Total` is the number of each labels summed up for both origin and prediction. The predict `Total` is the `number of boxes` specified above.
       - `Score` lists all the predict scores, the number is also specified by `number of boxes`.
   ![Interactive visualization](https://github.com/srvanderplas/fastai-test/blob/main/README_img/Shiny.png)
   
@@ -41,11 +41,13 @@
   * Much more reasonable number of proposing regions
       - Predict boxes from model2
         ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_pred.png)
+        
       - Origin boxes
         ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_origin.png)
   * Some of the proposing regions are reasonable if we limit the number of boxed displayed
       - Predict boxes from model2
         ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_pred.png)
+      
       - Origin boxes
         ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_origin.png)
   
