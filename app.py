@@ -11,14 +11,23 @@ classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other',
            'triangle', 'exclude', 'star', 'bowtie', 'line', 'ribbon']
            
 app_ui = ui.page_fluid(
-    ui.input_slider("n_boxes", "Number of Boxes", value=1, min=0, max=20),
-    ui.input_checkbox("randomness", "Random generate"),
-    ui.input_slider("idx", "Number between 0 and 897", value=23, min=0, max=897),
+    ui.panel_title('Origin and Prediction'),
     
-    ui.output_plot('origin'),
-    ui.output_plot('pred'),
-    ui.output_table("origin_and_pred_classes"),
-    ui.output_text("threshold"),
+    ui.layout_sidebar(
+      
+        ui.panel_sidebar(
+            ui.input_slider("n_boxes", "Number of Boxes", value=1, min=0, max=20),
+            ui.input_checkbox("randomness", "Random generate"),
+            ui.input_numeric("idx", "Number between 0 and 897", value=10),
+            ui.output_table("origin_and_pred_classes"),
+            ui.output_text("threshold"),
+        ),
+        
+        ui.panel_main(
+            ui.output_plot('pred'),
+            ui.output_plot('origin'),
+        ),
+    ),
 )
 
 def server(input, output, session):
@@ -28,7 +37,8 @@ def server(input, output, session):
         if input.randomness() == False:
             pred_name = names(input.randomness())[1]
             pred_batch = torch.load(pred_name)
-        return str(pred_batch[0]['scores'][input.n_boxes()])
+            threshold = format(pred_batch[0]['scores'][input.n_boxes()], '.3f')
+        return f'The threshold is {threshold}'
       
     @output
     @render.table
@@ -38,6 +48,7 @@ def server(input, output, session):
         df_all.set_index(0, inplace=True)
         df_all['classes'] = df_all.index
         df_all['pred_freq'] = 0
+        df_all.loc['Total'] = [0, 'Total', input.n_boxes()]
         
         origin_name = names(input.randomness())[0]
         pred_name = names(input.randomness())[1]
@@ -52,13 +63,13 @@ def server(input, output, session):
         # .rename_axis('classes').reset_index(name='predicted counts')
         for i in origin_freq.index:
             df_all.loc[i[0], 'origin_freq']=origin_freq[[i][0]]
+        df_all.iloc[-1, 0] = sum(df_all['origin_freq'])
         
         pred_freq = pred_labels.value_counts()
         for i in pred_freq.index:
             df_all.loc[i[0], 'pred_freq']=pred_freq[[i][0]]
         
         return df_all
-        
         
     def names(random):
         if random == True:
