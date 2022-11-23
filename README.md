@@ -28,6 +28,7 @@
       - [X] Need all predicted data
       - [X] App.py can't connect to server, probably because running on server
           + solved by running on local
+      - [X] Add confusion matrix
   - [ ] valid_dl with batch_size=4,
       * IndexError: boolean index did not match indexed array along dimension 0; dimension is 45 but corresponding boolean dimension is 36
       * Currently bypass this problem by seeting batch_size=1
