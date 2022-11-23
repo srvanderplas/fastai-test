@@ -62,11 +62,15 @@ def server(input, output, session):
         labels = list(set(origin_labels + pred_labels))
         
         sns.set()
+        current_palette = sns.color_palette("light:#5A9", as_cmap=True)
+        current_palette = sns.color_palette("Greens", as_cmap=True)
+        # sns.palplot(sns.color_palette("terrain_r", 7))
+        # sns.color_palette("light:#5A9", as_cmap=True)
         fig, ax = plt.subplots()
         # cf_matrix = pd.crosstab(origin_labels,pred_labels)
         # sns.heatmap(cf_matrix, linewidths=1, annot=True, ax=ax, fmt='g')
         matrix = confusion_matrix(origin_labels, pred_labels, labels = labels)
-        sns.heatmap(matrix, annot=True, fmt = 'g', ax=ax, cmap='crest')
+        sns.heatmap(matrix, annot=True, fmt = 'g', ax=ax, cmap=current_palette)
         ax.xaxis.set_ticklabels(labels)
         ax.yaxis.set_ticklabels(labels)
         
