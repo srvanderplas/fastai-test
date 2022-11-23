@@ -18,7 +18,7 @@ app_ui = ui.page_fluid(
         ui.panel_sidebar(
             ui.input_slider("n_boxes", "Number of Boxes", value=1, min=0, max=20),
             # ui.input_checkbox("randomness", "Random generate"),
-            ui.input_numeric("idx", "Number between 0 and 897", value=10),
+            ui.input_numeric("idx", "Number between 0 and 896", value=10),
             ui.output_table("origin_and_pred_classes"),
             ui.output_text("threshold"),
         ),
@@ -50,15 +50,11 @@ def server(input, output, session):
         
         origin_batch, pred_batch = batches()
         
-        # pred_name = names(input.randomness())[1]
-        
-        # origin_batch = torch.load(origin_name)
         origin_labels = pd.DataFrame([classes[i] for i in origin_batch['targets'][0]['labels']])
-        # pred_batch = torch.load(pred_name)
         pred_labels = pd.DataFrame([classes[i] for i in pred_batch[0]['labels']])[:input.n_boxes()]
         
         origin_freq = origin_labels.value_counts()
-        # .rename_axis('classes').reset_index(name='predicted counts')
+
         for i in origin_freq.index:
             df_all.loc[i[0], 'origin_freq']=origin_freq[[i][0]]
         df_all.iloc[-1, 0] = sum(df_all['origin_freq'])
@@ -70,9 +66,6 @@ def server(input, output, session):
         return df_all
         
     def batches():
-        # if random_n == True:
-        # idx = random.randint(0, 896)
-        # if random_n == False:
         idx = input.idx()
         
         origin_name = 'Modified Data/Valid_pred/origin' + str(idx) + '.pt'
@@ -117,13 +110,6 @@ def server(input, output, session):
     @output
     @render.plot
     def origin():
-        # if input.randomness() == True:
-        #     idx = str(random.randint(0, 897))
-        # if input.randomness() == False:
-        #     idx = input.idx()
-        
-        # origin_name = names(input.randomness())[0]
-        # origin_name = 'Modified Data/Valid_pred/origin' + str(idx) + '.pt'
         origin_batch = batches()[0]
 
         tensor_img = origin_batch['images'][0]
@@ -150,11 +136,7 @@ def server(input, output, session):
         # plt.show()
         plt.close()
         return fig
-    
-    # @output
-    # @render.plot
-    # def pred():
-        
+
         
     def draw_bboxes_and_label(l_bboxes, img_copy,label_color=(255,0,255), corner_color = (0,255,255), box_color=(220, 0, 0), length=20):
         for bbox in l_bboxes:
