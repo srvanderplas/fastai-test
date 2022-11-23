@@ -46,6 +46,7 @@
         ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_origin.png)
   * Some of the proposing regions are reasonable if we limit the number of boxed displayed
       - Predict boxes from model2
+      
         ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_pred.png)
       
       - Origin boxes
