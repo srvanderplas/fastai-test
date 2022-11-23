@@ -14,12 +14,12 @@
   * Two images
     - The top one is the image with predicted boxes
     - The bottom one is the image with original boxes
-  * `Number of Boxes` allows manually choosing how many predicted boxes in the prediction image
-  * `Number between 0 and 896` is indexed by all the predicted images we have
+  * `Number of Boxes` allows manually choosing how many predicted boxes in the predict image
+  * `Number between 0 and 896` specifies the index of the image to display from all 897 images we have
   *  Three tabs
       - `Confusion Matrix` shows the heatmap of confusion matrix
       - `Table` lists all the 13 classes we defined and the number of classes in the each of the plots. The last row `Total` is the number of each labels summed up for both origin and prediction. The predict `Total` is the `number of boxes` speficied above.
-      - `Score` lists all the predict scores, the number is also specified by `number of boxes.
+      - `Score` lists all the predict scores, the number is also specified by `number of boxes`.
   ![Interactive visualization](https://github.com/srvanderplas/fastai-test/blob/main/README_img/Shiny.png)
   
   
