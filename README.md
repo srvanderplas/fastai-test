@@ -43,14 +43,15 @@
         ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_pred.png)    
         
       - Origin boxes    
-        ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_origin.png)
+        ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_origin.png)   
   * Some of the proposing regions are reasonable if we limit the number of boxed displayed
       - Predict boxes from model2
         ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_pred.png)    
       
       - Origin boxes    
       
-        ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_origin.png)   
+        ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_origin.png)     
+  * Some he predictions match with the original label, but Obviously, the original labels are not matching with our scheme, **need to look into input data**.
   
 ### Todo
   - [X] Train with a all train images
