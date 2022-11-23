@@ -17,8 +17,7 @@ app_ui = ui.page_fluid(
       
         ui.panel_sidebar(
             ui.input_slider("n_boxes", "Number of Boxes", value=1, min=0, max=20),
-            # ui.input_checkbox("randomness", "Random generate"),
-            ui.input_numeric("idx", "Number between 0 and 896", value=10),
+            ui.input_numeric("idx", "Number between 0 and 897", value=10),
             ui.output_table("origin_and_pred_classes"),
             ui.output_text("threshold"),
         ),
@@ -130,7 +129,7 @@ def server(input, output, session):
         length=20
         
         fig, ax = plt.subplots(1, 1, figsize=(16, 8))
-        draw_bboxes_and_label(l_bboxes, img_copy)
+        draw_bboxes_and_label(l_bboxes, img_copy,label_color=(100,100,0))
         ax.set_axis_off()
         ax.imshow(img_copy)
         # plt.show()
