@@ -6,6 +6,9 @@ import random
 import torch
 import cv2
 import pandas as pd
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
 
 classes = ['logo', 'polygon', 'chevron', 'circle', 'text', 'quad', 'other', 
            'triangle', 'exclude', 'star', 'bowtie', 'line', 'ribbon']
@@ -14,12 +17,20 @@ app_ui = ui.page_fluid(
     ui.panel_title('Origin and Prediction'),
     
     ui.layout_sidebar(
-      
         ui.panel_sidebar(
-            ui.input_slider("n_boxes", "Number of Boxes", value=1, min=0, max=20),
-            ui.input_numeric("idx", "Number between 0 and 897", value=10),
-            ui.output_table("origin_and_pred_classes"),
+            ui.input_slider('n_boxes', 'Number of Boxes', value=1, min=0, max=20),
+            ui.input_numeric('idx', 'Number between 0 and 897', value=10),
             ui.output_text("threshold"),
+            ui.navset_tab_card(
+                ui.nav(
+                    'Confusion Matrix',
+                    ui.output_plot('confusion_matrix_plot'),
+                ),
+                ui.nav(
+                    'Table',
+                    ui.output_table('origin_and_pred_classes_table'),
+                ),
+            ),
         ),
         
         ui.panel_main(
@@ -36,10 +47,39 @@ def server(input, output, session):
         pred_batch = batches()[1]
         threshold = format(pred_batch[0]['scores'][input.n_boxes()], '.3f')
         return f'The threshold is {threshold}'
-      
+    
+    @output
+    @render.plot
+    def confusion_matrix_plot():
+        origin_batch, pred_batch = batches()
+        origin_labels = [classes[i] for i in origin_batch['targets'][0]['labels']]
+        pred_labels = [classes[i] for i in pred_batch[0]['labels']][:len(origin_labels)]
+        
+        labels = list(set(origin_labels + pred_labels))
+        
+        # df_all = pd.DataFrame({'classes': labels})
+        # for label in labels:
+        #     df_all[label] = 0
+        # 
+        # matrix = pd.DataFrame(origin_labels)
+        sns.set()
+        fig, ax = plt.subplots()
+        # cf_matrix = pd.crosstab(origin_labels,pred_labels)
+        # sns.heatmap(cf_matrix, linewidths=1, annot=True, ax=ax, fmt='g')
+        matrix = confusion_matrix(origin_labels, pred_labels, labels = labels)
+        sns.heatmap(matrix, annot=True, fmt = 'g', ax=ax, cmap='crest')
+        ax.xaxis.set_ticklabels(labels)
+        ax.yaxis.set_ticklabels(labels)
+        
+        ax.set_title('Confusion Matrix')
+        ax.set_xlabel('Predict')
+        ax.set_ylabel('True')
+        
+        return fig
+        
     @output
     @render.table
-    def origin_and_pred_classes():
+    def origin_and_pred_classes_table():
         df_all = pd.DataFrame(classes)
         df_all['origin_freq'] = 0
         df_all.set_index(0, inplace=True)
@@ -92,13 +132,13 @@ def server(input, output, session):
         bboxes = np.column_stack((np_boxes, labels))
         [l_bboxes[i].append(labels[i]) for i in range(len(labels))]
         
-        label_color=(255,0,255)
+        label_color=(0,255,0)
         corner_color = (0,255,255)
         box_color=(220, 0, 0)
         length=20
         
         fig, ax = plt.subplots(1, 1, figsize=(16, 8))
-        draw_bboxes_and_label(l_bboxes, img_copy)
+        draw_bboxes_and_label(l_bboxes, img_copy, label_color=label_color)
         ax.set_axis_off()
         ax.imshow(img_copy)
         # plt.show()
