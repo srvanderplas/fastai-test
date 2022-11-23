@@ -8,9 +8,9 @@
   * plot_dl(batch, index=0)
   * plot_prediction(batch, predict_outputs=False, index=0, threshold=0.2
 
-### app.py
+## app.py
   * An interactive visualization
-  * From outputs from model2
+  * Outputs from model2
   * Two images
     - The top one is the image with predicted boxes
     - The bottom one is the image with original boxes
@@ -30,12 +30,20 @@
   * Trained with around 400 batches, batch_size = 4, 2 epochs
   * No transform
   * Predict 100 proposal regions with labels and scores, ** some of the boxes are off **
+  ![100 porposing regions from model1](https://github.com/srvanderplas/fastai-test/blob/main/README_img/mode1_100_boxes.png)
+
+  
 ### Nov 20, 2022
 #### Model2
   * All_model2.pt
   * Trained with around 400 batches, batch_size = 4, 2 epochs
   * No transform
-  * Much more reasonable proposing regions
+  * Much more reasonable number of proposing regions
+  ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_pred.png)
+  ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_001_origin.png)
+  * Some of the proposing regions are reasonable if we limit the number of boxed displayed
+  ![Predict boxes from model2](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_pred.png)
+  ![Origin boxes](https://github.com/srvanderplas/fastai-test/blob/main/README_img/model2_002_origin.png)
   
 ### Todo
   - [X] Train with a all train images
@@ -44,7 +52,6 @@
       - [X] App.py can't connect to server, probably because running on server
           + solved by running on local
       - [X] Add confusion matrix
-    ![This is an image](https://myoctocat.com/assets/images/base-octocat.svg)
   - [ ] valid_dl with batch_size=4,
       * IndexError: boolean index did not match indexed array along dimension 0; dimension is 45 but corresponding boolean dimension is 36
       * Currently bypass this problem by seeting batch_size=1
