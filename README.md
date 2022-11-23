@@ -6,7 +6,22 @@
   * class VocDataset(Dataset)
   * Averager
   * plot_dl(batch, index=0)
-  * plot_prediction(batch, predict_outputs=False, index=0, threshold=0.2)
+  * plot_prediction(batch, predict_outputs=False, index=0, threshold=0.2
+
+### app.py
+  * An interactive visualization
+  * From outputs from model2
+  * Two images
+    - The top one is the image with predicted boxes
+    - The bottom one is the image with original boxes
+  * `Number of Boxes` allows manually choosing how many predicted boxes in the prediction image
+  * `Number between 0 and 896` is indexed by all the predicted images we have
+  *  Three tabs
+      - `Confusion Matrix` shows the heatmap of confusion matrix
+      - `Table` lists all the 13 classes we defined and the number of classes in the each of the plots. The last row `Total` is the number of each labels summed up for both origin and prediction. The predict `Total` is the `number of boxes` speficied above.
+      - `Score` lists all the predict scores, the number is also specified by `number of boxes.
+  ![Interactive visualization](https://github.com/srvanderplas/fastai-test/blob/main/README_img/Shiny.png)
+  
   
 ## Result
 ### Nov 17, 2022
@@ -29,6 +44,7 @@
       - [X] App.py can't connect to server, probably because running on server
           + solved by running on local
       - [X] Add confusion matrix
+    ![This is an image](https://myoctocat.com/assets/images/base-octocat.svg)
   - [ ] valid_dl with batch_size=4,
       * IndexError: boolean index did not match indexed array along dimension 0; dimension is 45 but corresponding boolean dimension is 36
       * Currently bypass this problem by seeting batch_size=1
