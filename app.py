@@ -19,7 +19,7 @@ app_ui = ui.page_fluid(
     ui.layout_sidebar(
         ui.panel_sidebar(
             ui.input_slider('n_boxes', 'Number of Boxes', value=1, min=0, max=20),
-            ui.input_numeric('idx', 'Number between 0 and 897', value=10),
+            ui.input_numeric('idx', 'Number between 0 and 896', value=10),
             ui.output_text("threshold"),
             ui.navset_tab_card(
                 ui.nav(
@@ -29,6 +29,10 @@ app_ui = ui.page_fluid(
                 ui.nav(
                     'Table',
                     ui.output_table('origin_and_pred_classes_table'),
+                ),
+                ui.nav(
+                    'Score',
+                    ui.output_table('scores'),
                 ),
             ),
         ),
@@ -57,11 +61,6 @@ def server(input, output, session):
         
         labels = list(set(origin_labels + pred_labels))
         
-        # df_all = pd.DataFrame({'classes': labels})
-        # for label in labels:
-        #     df_all[label] = 0
-        # 
-        # matrix = pd.DataFrame(origin_labels)
         sns.set()
         fig, ax = plt.subplots()
         # cf_matrix = pd.crosstab(origin_labels,pred_labels)
@@ -114,6 +113,21 @@ def server(input, output, session):
         pred_batch = torch.load(pred_name)
         
         return [origin_batch, pred_batch]
+    
+    @output
+    @render.table
+    def scores():
+        origin_batch, pred_batch = batches()
+        
+        pred_scores = pred_batch[0]['scores'][:input.n_boxes()]
+        np_scores = pred_scores.cpu().detach().numpy().astype(np.float64)
+        l_scores = np_scores.tolist()
+        
+        pred_labels = [classes[i] for i in pred_batch[0]['labels']][:input.n_boxes()]
+        
+        df_all = pd.DataFrame({'Labels' : pred_labels, 
+                               'Scores' : l_scores})
+        return df_all
     
     @output
     @render.plot
