@@ -1,1 +1,37 @@
-<annotation><filename>hunter-kids-davidson-toddler-little-kid-bucket-blue-ocean-swell-boat-blue_product_8352250_color_792096.jpg</filename><folder>Shoes</folder><source><sourceImage>The MIT-CSAIL database of objects and scenes</sourceImage><sourceAnnotation>LabelMe Webtool</sourceAnnotation></source><object><name>chevron</name><deleted>0</deleted><verified>0</verified><occluded>no</occluded><attributes /><parts><hasparts /><ispartof /></parts><date>25-Jan-2019 20:00:36</date><id>0</id><type>bounding_box</type><bndbox><xmin>969</xmin><ymin>813</ymin><xmax>1433</xmax><ymax>1193</ymax></bndbox></object><imagesize><nrows /><ncols /></imagesize><size><width>1930</width><height>1450</height><depth>3</depth></size></annotation>
+<annotation>
+	<filename>hunter-kids-davidson-toddler-little-kid-bucket-blue-ocean-swell-boat-blue_product_8352250_color_792096.jpg</filename>
+	<folder>Shoes</folder>
+	<source>
+		<sourceImage>The MIT-CSAIL database of objects and scenes</sourceImage>
+		<sourceAnnotation>LabelMe Webtool</sourceAnnotation>
+	</source>
+	<object>
+		<name>chevron</name>
+		<deleted>0</deleted>
+		<verified>0</verified>
+		<occluded>no</occluded>
+		<attributes />
+		<parts>
+			<hasparts />
+			<ispartof />
+		</parts>
+		<date>25-Jan-2019 20:00:36</date>
+		<id>0</id>
+		<type>bounding_box</type>
+		<bndbox>
+			<xmin>969</xmin>
+			<ymin>813</ymin>
+			<xmax>1433</xmax>
+			<ymax>1193</ymax>
+		</bndbox>
+	</object>
+	<imagesize>
+		<nrows />
+		<ncols />
+	</imagesize>
+	<size>
+		<width>1908</width>
+		<height>841</height>
+		<depth>3</depth>
+	</size>
+</annotation>
