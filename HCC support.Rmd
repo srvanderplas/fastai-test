@@ -1,0 +1,61 @@
+---
+title: "HCC"
+author: "Muxin Hua"
+date: '2023-04-10'
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+-   Follow
+    [this](https://hcc.unl.edu/docs/applications/user_software/using_anaconda_package_manager/)
+    to create environment and specify the versions of packages
+
+-   Make sure activate the environment with `conda`, so hcc could
+    recognize your conda environment -`Source activate` and
+    `conda activate` can be DIFFERENT, because we rely conda to manage
+    the packges, so pakcages installed by conda CANNOT be import when
+    activate the environment by `source` command.
+
+-   Store data in common directory where has limit 30Ti owned by the
+    group
+
+-   A slurm script looks like this
+
+`#!/bin/bash #SBATCH –time=10:00:00.` \<- time to run the job
+
+`#SBATCH –mem-per-cpu=2048`\<- required memory to ran the job
+
+`#SBATCH –job-name=shoe`
+
+`#SBATCH –partition=gpu` \<- ask for gpu from hcc, replace the partition
+if need other jobs #SBATCH --gres=gpu
+
+`#SBATCH –error=/work/vanderplas/muxin/job.%J.err`\<- directory for
+returned error report
+`#SBATCH –output=/work/vanderplas/muxin/job.%J.err` \<- directory for
+returned model training result
+
+`#SBATCH –license=common` \<- need this line if the environment is
+created by oneself andunder the common directory
+
+`module purge`
+
+`module load anaconda` \<- load conda for following conda activate
+command
+
+`conda activate /common/vanderplas/muxin/3.8env`\<- a conda environment
+created by myself
+
+`python FasterRCNN.py` \<- my python script
+
+-   If there are extreme or specific jobs, can follow compiling from
+    [here](https://hcc.unl.edu/docs/submitting_jobs/submitting_gpu_jobs/)
+
+```{=html}
+<!-- -->
+```
+-   Submit job with `sbatch shoe.slurm`
