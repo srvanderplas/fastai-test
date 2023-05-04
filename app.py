@@ -110,8 +110,8 @@ def server(input, output, session):
     def batches():
         idx = input.idx()
         
-        origin_name = 'Modified Data/Valid_pred/origin' + str(idx) + '.pt'
-        pred_name = 'Modified Data/Valid_pred/pred' + str(idx) + '.pt'
+        origin_name = 'Modified Data/Valid_pred2023/origin' + str(idx) + '.pt'
+        pred_name = 'Modified Data/Valid_pred2023/pred' + str(idx) + '.pt'
         
         origin_batch = torch.load(origin_name)
         pred_batch = torch.load(pred_name)
